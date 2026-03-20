@@ -1,0 +1,28 @@
+Northeastern University Co-op Tips and Career Services Guide
+
+CO-OP PROGRAM OVERVIEW
+Northeastern's co-op program is one of the oldest and largest in the US. Students alternate between academic semesters and full-time 6-month co-op experiences. Most programs require 1-3 co-ops.
+
+CO-OP CYCLE DATES
+Fall co-op: July through December. Spring/Summer co-op: January through June. Applications open 3-4 months before the start date.
+
+APPLYING THROUGH NUWORKS
+NUWorks is Northeastern's official co-op and career platform at northeastern.joinhandshake.com. Students need a completed profile, approved resume, and faculty advisor sign-off before applying.
+
+RESUME REQUIREMENTS FOR CO-OP
+One page maximum for undergraduates. Include GPA if above 3.0. Skills section should list programming languages, frameworks, and tools. Northeastern requires resume review by a co-op advisor before submission.
+
+COMMON CO-OP COMPANIES FOR CS/IS STUDENTS
+Amazon, Wayfair, Fidelity, State Street, Raytheon, GE, VMware, Rapid7, HubSpot, Liberty Mutual, Comcast, Toast, DraftKings, Chewy.
+
+GPA REQUIREMENTS
+Most technical co-ops prefer 3.0 or above. Goldman Sachs and JP Morgan often require 3.5+. Always include GPA if it helps your application.
+
+CO-OP ADVISOR TIPS
+Meet your advisor at least 4 weeks before applications open. Tailor resume for each role. Practice behavioral interviews using STAR method. Research the company before every interview.
+
+SALARY EXPECTATIONS
+Boston area co-op salaries for CS students: $25-50/hr. FAANG-adjacent companies pay higher. Finance companies often include housing stipends.
+
+PROFESSIONAL DEVELOPMENT
+Northeastern Career Design Center offers free resume reviews, mock interviews, and employer networking events every semester.
