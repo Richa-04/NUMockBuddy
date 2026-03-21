@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 
@@ -73,23 +74,126 @@ const MOCK = {
   summary:
     'You demonstrated solid fundamentals and communicated your thinking well throughout the session. The main area to focus on is edge-case coverage — interviewers at this level will always probe boundary conditions. With a bit more practice on optimal data structures you will be in great shape.',
 
-  question: 'Given an array of integers, return the indices of the two numbers that add up to a given target.',
-
-  modelAnswer: `A brute-force O(n²) nested loop works, but the optimal approach uses a hash map for O(n) time and O(n) space.
-
+  modelAnswers: [
+    {
+      question: 'Given an array of integers, return the indices of the two numbers that add up to a given target.',
+      language: 'python',
+      answer: `# Optimal: hash map — O(n) time, O(n) space
 def two_sum(nums: list[int], target: int) -> list[int]:
     seen = {}                        # value → index
     for i, num in enumerate(nums):
         complement = target - num
-    if complement in seen:
-        return [seen[complement], i]
-    seen[num] = i
-    return []                        # no solution found
+        if complement in seen:
+            return [seen[complement], i]
+        seen[num] = i
+    return []                        # no solution (empty input)
 
-Key points to mention in an interview:
-• Check for the complement before inserting so you don't use the same element twice.
-• Handle the empty-array edge case (returns [] gracefully).
-• Time: O(n)  |  Space: O(n)`,
+# Key points:
+# • Check complement BEFORE inserting to avoid using the same index twice.
+# • Handles empty array gracefully (returns []).
+# • Time: O(n)  |  Space: O(n)`,
+    },
+    {
+      question: 'Find the length of the longest substring without repeating characters.',
+      language: 'python',
+      answer: `# Sliding window — O(n) time, O(min(n, k)) space  (k = charset size)
+def length_of_longest_substring(s: str) -> int:
+    char_index = {}
+    left = max_len = 0
+
+    for right, ch in enumerate(s):
+        if ch in char_index and char_index[ch] >= left:
+            left = char_index[ch] + 1   # shrink window past the duplicate
+        char_index[ch] = right
+        max_len = max(max_len, right - left + 1)
+
+    return max_len
+
+# Key points:
+# • Shrink window only when the duplicate is inside the current window.
+# • One-pass; no inner loop — strictly O(n).
+# • Edge cases: empty string → 0, all-same chars → 1.`,
+    },
+    {
+      question: 'Design a URL shortening service. How would you handle scalability?',
+      language: 'text',
+      answer: `High-level design:
+
+1. ID generation
+   • Base-62 encode a unique ID (a-z, A-Z, 0-9) → 7 chars ≈ 3.5 trillion URLs.
+   • Options: auto-increment DB ID, distributed counter (Snowflake), random + collision check.
+
+2. Storage
+   • Write path: hash → long URL stored in key-value store (DynamoDB / Redis + Postgres).
+   • Read path: cache hot URLs in Redis (TTL ~24 h) to keep DB reads low.
+
+3. Redirection
+   • 301 (permanent) — browser caches; reduces server load but loses analytics.
+   • 302 (temporary) — every visit hits server; better for click tracking.
+
+4. Scalability
+   • Stateless API servers behind a load balancer — horizontal scaling.
+   • Read replicas for the DB; writes go to primary.
+   • CDN for global redirect latency.
+   • Rate-limit by IP to prevent abuse.
+
+5. Edge cases
+   • URL validation before shortening.
+   • Expiry / TTL support per link.
+   • Custom aliases (check availability first).`,
+    },
+    {
+      question: 'Detect whether a linked list has a cycle.',
+      language: 'python',
+      answer: `# Floyd's "tortoise and hare" — O(n) time, O(1) space
+class ListNode:
+    def __init__(self, val=0, next=None):
+        self.val, self.next = val, next
+
+def has_cycle(head: ListNode | None) -> bool:
+    slow = fast = head
+    while fast and fast.next:
+        slow = slow.next
+        fast = fast.next.next
+        if slow is fast:
+            return True
+    return False
+
+# Key points:
+# • Two pointers at different speeds — if a cycle exists they must eventually meet.
+# • No extra memory (unlike storing visited nodes in a set).
+# • If fast reaches None, the list is acyclic.
+# • To find the cycle entry point: reset one pointer to head after meeting,
+#   then advance both one step at a time — they meet at the entry node.`,
+    },
+    {
+      question: 'What is the difference between SQL and NoSQL databases? When would you use each?',
+      language: 'text',
+      answer: `SQL (Relational)
+────────────────────────────────────────────
+• Structured schema — tables, rows, foreign keys.
+• ACID transactions — strong consistency.
+• Best for: financial systems, e-commerce orders, anything needing JOINs
+  or complex queries across related data.
+• Examples: PostgreSQL, MySQL, SQLite.
+
+NoSQL (Non-relational)
+────────────────────────────────────────────
+• Flexible schema — documents, key-value, wide-column, graph.
+• BASE model — eventual consistency; trades consistency for availability/speed.
+• Best for: high write throughput, unstructured data, horizontal scaling,
+  caching, real-time feeds, user profiles.
+• Examples: MongoDB (document), Redis (key-value), Cassandra (wide-column).
+
+Decision framework:
+  Need complex queries / strict consistency?  → SQL
+  Need massive scale / flexible schema?       → NoSQL
+  Both?                                       → Polyglot persistence (use both)
+
+Interview tip: mention CAP theorem — no system can guarantee Consistency,
+Availability, and Partition Tolerance simultaneously.`,
+    },
+  ],
 }
 
 // ─── Verdict config ───────────────────────────────────────────────────────────
@@ -168,6 +272,8 @@ export default function ResultsPage() {
 
   const verdict = MOCK.verdict
   const verdictStyle = VERDICT_STYLES[verdict]
+
+  const [openQuestion, setOpenQuestion] = useState<number | null>(0)
 
   return (
     <section style={{
@@ -413,78 +519,133 @@ export default function ResultsPage() {
             </div>
           </div>
 
-          {/* ── 4. Model Answer ── */}
+          {/* ── 4. Model Answers ── */}
           <div style={{
             border: '1px solid var(--color-gray-200)',
             borderRadius: 'var(--radius-lg)',
-            padding: 32,
             background: '#fff',
             marginBottom: 48,
+            overflow: 'hidden',
           }}>
-            <h2 style={{
-              fontSize: 18, fontWeight: 600,
-              color: 'var(--color-black)', marginBottom: 8,
-            }}>
-              Model Answer
-            </h2>
-
-            <div style={{
-              fontSize: 13, color: 'var(--color-gray-500)',
-              marginBottom: 20,
-            }}>
-              Question asked:
+            <div style={{ padding: '24px 32px', borderBottom: '1px solid var(--color-gray-200)' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-black)', margin: 0 }}>
+                Model Answers
+              </h2>
             </div>
 
-            <div style={{
-              padding: '14px 18px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--color-gray-100, #f9fafb)',
-              border: '1px solid var(--color-gray-200)',
-              fontSize: 14,
-              fontWeight: 500,
-              color: 'var(--color-black)',
-              marginBottom: 20,
-              lineHeight: 1.5,
-            }}>
-              {MOCK.question}
-            </div>
+            {MOCK.modelAnswers.map((item, idx) => {
+              const isOpen = openQuestion === idx
+              const total = MOCK.modelAnswers.length
+              return (
+                <div
+                  key={idx}
+                  style={{ borderBottom: idx < total - 1 ? '1px solid var(--color-gray-200)' : 'none' }}
+                >
+                  {/* Accordion header */}
+                  <button
+                    onClick={() => setOpenQuestion(isOpen ? null : idx)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 16,
+                      padding: '20px 32px',
+                      background: isOpen ? '#fafafa' : '#fff',
+                      border: 'none',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background 0.15s ease',
+                    }}
+                  >
+                    {/* Question number badge */}
+                    <span style={{
+                      flexShrink: 0,
+                      width: 28, height: 28,
+                      borderRadius: '50%',
+                      background: isOpen ? 'var(--color-red)' : 'var(--color-gray-200)',
+                      color: isOpen ? '#fff' : 'var(--color-gray-600)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 12, fontWeight: 700,
+                      marginTop: 1,
+                      transition: 'all 0.15s ease',
+                    }}>
+                      {idx + 1}
+                    </span>
 
-            <div style={{
-              borderRadius: 'var(--radius-md)',
-              overflow: 'hidden',
-              border: '1px solid #1e293b',
-            }}>
-              {/* Code block header */}
-              <div style={{
-                background: '#1e293b',
-                padding: '10px 16px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}>
-                <span style={{ fontSize: 12, color: '#94a3b8', fontFamily: 'var(--font-mono, monospace)' }}>
-                  python
-                </span>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {['#ef4444', '#facc15', '#4ade80'].map(c => (
-                    <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />
-                  ))}
+                    <div style={{ flex: 1 }}>
+                      <div style={{
+                        fontSize: 11, fontWeight: 700,
+                        color: isOpen ? 'var(--color-red)' : 'var(--color-gray-500)',
+                        textTransform: 'uppercase', letterSpacing: '0.06em',
+                        marginBottom: 4,
+                      }}>
+                        Question {idx + 1} of {total}
+                      </div>
+                      <div style={{
+                        fontSize: 14, fontWeight: 500,
+                        color: 'var(--color-black)', lineHeight: 1.5,
+                      }}>
+                        {item.question}
+                      </div>
+                    </div>
+
+                    {/* Chevron */}
+                    <span style={{
+                      flexShrink: 0,
+                      fontSize: 18,
+                      color: 'var(--color-gray-400)',
+                      transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s ease',
+                      marginTop: 2,
+                      lineHeight: 1,
+                    }}>
+                      ▾
+                    </span>
+                  </button>
+
+                  {/* Accordion body */}
+                  {isOpen && (
+                    <div style={{ padding: '0 32px 24px' }}>
+                      <div style={{
+                        borderRadius: 'var(--radius-md)',
+                        overflow: 'hidden',
+                        border: '1px solid #1e293b',
+                      }}>
+                        <div style={{
+                          background: '#1e293b',
+                          padding: '10px 16px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}>
+                          <span style={{ fontSize: 12, color: '#94a3b8', fontFamily: 'var(--font-mono, monospace)' }}>
+                            {item.language}
+                          </span>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            {['#ef4444', '#facc15', '#4ade80'].map(c => (
+                              <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />
+                            ))}
+                          </div>
+                        </div>
+                        <pre style={{
+                          margin: 0,
+                          padding: '20px',
+                          background: '#0f172a',
+                          color: '#e2e8f0',
+                          fontSize: 13,
+                          lineHeight: 1.7,
+                          overflowX: 'auto',
+                          fontFamily: 'var(--font-mono, "Fira Code", "Cascadia Code", monospace)',
+                          whiteSpace: 'pre-wrap',
+                        }}>
+                          {item.answer}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <pre style={{
-                margin: 0,
-                padding: '20px 20px',
-                background: '#0f172a',
-                color: '#e2e8f0',
-                fontSize: 13,
-                lineHeight: 1.7,
-                overflowX: 'auto',
-                fontFamily: 'var(--font-mono, "Fira Code", "Cascadia Code", monospace)',
-                whiteSpace: 'pre-wrap',
-              }}>
-                {MOCK.modelAnswer}
-              </pre>
-            </div>
+              )
+            })}
           </div>
 
           {/* ── 5. Bottom Buttons ── */}
