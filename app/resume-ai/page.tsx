@@ -6,9 +6,18 @@ import { lookupATS } from "@/lib/ats-companies";
 type Tab = "jd" | "ats" | "chat";
 type Mode = "jd" | "role";
 
+interface QuickWin {
+  action: string;
+  effort: string;
+  impact: string;
+}
+
 interface AnalysisResult {
   score: number;
   atsProbability?: number;
+  atsProbabilityExplanation?: string;
+  senioritySignal?: string;
+  quickWins?: QuickWin[];
   matchedKeywords?: string[];
   missingKeywords?: string[];
   semanticMatches?: string[];
@@ -37,6 +46,23 @@ interface AnalysisResult {
   educationNote?: string;
   domainMatch?: string;
   domainNote?: string;
+  impactScore?: number;
+  impactNote?: string;
+  achievementRatio?: string;
+  achievementNote?: string;
+  bulletLengthIssues?: string[];
+  buzzwordsFound?: string[];
+  repeatedVerbs?: string[];
+  dateConsistency?: string;
+  dateNote?: string;
+  sectionOrder?: string;
+  sectionOrderNote?: string;
+  densityScore?: string;
+  industryKeywordDensity?: string;
+  industryKeywordNote?: string;
+  projectedScore?: number;
+  projectedScoreNote?: string;
+  atsSystemBreakdown?: Record<string, { status: string; note: string }>;
 }
 
 interface ATSCheck {
@@ -51,15 +77,35 @@ interface SeverityIssue {
   fix: string;
 }
 
+interface MissingSection {
+  name: string;
+  importance: string;
+  why: string;
+}
+
+interface QuickFixItem {
+  id: number;
+  action: string;
+  effort: string;
+  impact: string;
+  scoreGain: string;
+  checked?: boolean;
+}
+
 interface ATSResult {
   overallScore: number;
   verdict: string;
+  scoreExplanation?: string;
+  projectedScore?: number;
+  projectedScoreNote?: string;
   isMultiColumn: boolean;
   checks: ATSCheck[];
   atsSystems?: Record<string, string>;
+  atsSystemDetails?: Record<string, string>;
   detectedSections?: string[];
-  missingSections?: string[];
+  missingSections?: MissingSection[];
   contactFields?: Record<string, boolean>;
+  quickFixChecklist?: QuickFixItem[];
   severityIssues?: SeverityIssue[];
   parseSimulation?: { garbled: string; clean: string };
 }
@@ -69,6 +115,7 @@ interface ScanRecord {
   score: number;
   createdAt: string;
   scanType: string;
+  fileName?: string;
 }
 
 interface ChatMessage {
@@ -89,15 +136,15 @@ interface AttachedFile {
   type: string;
 }
 
-const ROLES = ["Software Engineer", "Product Manager", "Data Engineer", "ML Engineer", "Solutions Architect"];
+const ROLES = ["Software Engineer", "SWE Intern", "Product Manager", "PM Intern", "Data Engineer", "ML Engineer", "Data Science Intern", "Solutions Architect", "Backend Engineer", "Frontend Engineer", "Full Stack Engineer", "DevOps Engineer"];
 
 const QUICK_CHIPS = [
-  { label: "✍️ Write a cover letter", prompt: "I need help writing a cover letter. Can you help me get started?" },
-  { label: "💪 Strengthen bullet points", prompt: "I want to strengthen my resume bullet points. Can you help?" },
-  { label: "📨 Outreach message", prompt: "I need to write a LinkedIn outreach message to a recruiter. Can you help?" },
-  { label: "🎯 Interview prep", prompt: "I have an upcoming interview. Can you help me prepare?" },
-  { label: "🔍 Find resume gaps", prompt: "Can you help me find gaps or weaknesses in my resume?" },
-  { label: "💼 Rewrite LinkedIn", prompt: "I want to rewrite my LinkedIn summary. Can you help?" },
+  { label: "Write a cover letter", prompt: "I need help writing a cover letter. Can you help me get started?" },
+  { label: "Strengthen bullet points", prompt: "I want to strengthen my resume bullet points. Can you help?" },
+  { label: "Application outreach message", prompt: "I need to write a LinkedIn outreach message to a recruiter. Can you help?" },
+  { label: "Interview advice", prompt: "I have an upcoming interview. Can you help me prepare?" },
+  { label: "Find gaps in my resume", prompt: "Can you help me find gaps or weaknesses in my resume?" },
+  { label: "Rewrite LinkedIn summary", prompt: "I want to rewrite my LinkedIn summary. Can you help?" },
 ];
 
 const WEAK_VERB_REPLACEMENTS: Record<string, string[]> = {
@@ -113,122 +160,194 @@ const WEAK_VERB_REPLACEMENTS: Record<string, string[]> = {
   "responsible for": ["owned", "led", "directed", "oversaw"],
 };
 
-function getLetterGrade(score: number): { grade: string; color: string; bg: string } {
-  if (score >= 90) return { grade: "A+", color: "#16a34a", bg: "bg-green-50 dark:bg-green-950" };
-  if (score >= 80) return { grade: "A", color: "#16a34a", bg: "bg-green-50 dark:bg-green-950" };
-  if (score >= 70) return { grade: "B+", color: "#2563eb", bg: "bg-gray-50 dark:bg-gray-900" };
-  if (score >= 60) return { grade: "B", color: "#2563eb", bg: "bg-gray-50 dark:bg-gray-900" };
-  if (score >= 50) return { grade: "C+", color: "#ca8a04", bg: "bg-yellow-50 dark:bg-yellow-950" };
-  if (score >= 40) return { grade: "C", color: "#ca8a04", bg: "bg-yellow-50 dark:bg-yellow-950" };
-  return { grade: "D", color: "#dc2626", bg: "bg-red-50 dark:bg-red-950" };
+function getLetterGrade(score: number) {
+  if (score >= 90) return { grade: "A+", color: "#16a34a" };
+  if (score >= 80) return { grade: "A", color: "#16a34a" };
+  if (score >= 70) return { grade: "B+", color: "#2d7a2d" };
+  if (score >= 60) return { grade: "B", color: "#ca8a04" };
+  if (score >= 50) return { grade: "C+", color: "#ca8a04" };
+  if (score >= 40) return { grade: "C", color: "#dc2626" };
+  return { grade: "D", color: "#dc2626" };
 }
 
 function ScoreGauge({ score, label }: { score: number; label?: string }) {
   const { grade, color } = getLetterGrade(score);
-  const r = 48;
-  const circ = 2 * Math.PI * r;
-  const half = circ / 2;
+  const r = 50;
+  const half = Math.PI * r;
   const fill = (score / 100) * half;
   return (
-    <div className="flex flex-col items-center gap-2">
-      <svg width="130" height="75" viewBox="0 0 130 75">
-        <path d="M 15 70 A 50 50 0 0 1 115 70" fill="none" stroke="#2a2a2a" strokeWidth="10" strokeLinecap="round" />
-        <path d="M 15 70 A 50 50 0 0 1 115 70" fill="none" stroke={color} strokeWidth="10"
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+      <svg width="124" height="68" viewBox="0 0 124 68">
+        <path d="M 12 64 A 50 50 0 0 1 112 64" fill="none" stroke="var(--color-gray-200)" strokeWidth="9" strokeLinecap="round" />
+        <path d="M 12 64 A 50 50 0 0 1 112 64" fill="none" stroke={color} strokeWidth="9"
           strokeLinecap="round" strokeDasharray={`${fill} ${half}`} />
       </svg>
-      <div className="flex items-end gap-2 -mt-10">
-        <span className="text-3xl font-black leading-none" style={{ color }}>{score}</span>
-        <span className="text-xs text-gray-500 mb-1">/100</span>
-        <span className="text-lg font-black leading-none px-2 py-0.5 rounded-lg mb-0.5" style={{ color, background: `${color}20` }}>{grade}</span>
+      <div style={{ marginTop: -8, textAlign: "center" }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 4 }}>
+          <span style={{ fontFamily: "var(--font-display)", fontSize: 42, fontWeight: 400, color, lineHeight: 1 }}>{score}</span>
+          <span style={{ fontSize: 12, color: "var(--color-gray-400)" }}>/100</span>
+        </div>
+        <div style={{ marginTop: 4, display: "inline-flex", alignItems: "center", gap: 6, padding: "2px 12px", borderRadius: "var(--radius-full)", border: `1.5px solid ${color}`, background: `${color}10` }}>
+          <span style={{ fontFamily: "var(--font-display)", fontSize: 15, color, fontWeight: 400 }}>{grade}</span>
+          {label && <span style={{ fontSize: 11, color: "var(--color-gray-400)" }}>{label}</span>}
+        </div>
       </div>
-      {label && <p className="text-xs text-gray-400">{label}</p>}
     </div>
   );
 }
 
-function CategoryCard({ title, score, icon, children }: { title: string; score?: number; icon: string; children?: React.ReactNode }) {
-  const color = score !== undefined ? (score >= 75 ? "#16a34a" : score >= 50 ? "#ca8a04" : "#dc2626") : "#6b7280";
+function ScanTimeline({ scans, showAll, onToggle }: { scans: ScanRecord[]; showAll: boolean; onToggle: () => void }) {
+  const filtered = scans.filter(s => s.score > 0);
+  if (!filtered.length) return null;
+
+  // Group by fileName for "all scans" view
+  const grouped: Record<string, ScanRecord[]> = {};
+  for (const s of filtered) {
+    const key = s.fileName || "Unknown file";
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(s);
+  }
+
+  // For current file view — just show last 5 of current file
+  const currentFileScans = filtered.slice(-5);
+
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">{icon}</span>
-          <p className="text-sm font-bold text-gray-700 dark:text-gray-200">{title}</p>
-        </div>
-        {score !== undefined && (
-          <div className="flex items-center gap-1.5">
-            <div className="h-1.5 w-20 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-              <div className="h-full rounded-full" style={{ width: `${score}%`, background: color }} />
-            </div>
-            <span className="text-xs font-bold" style={{ color }}>{score}</span>
-          </div>
-        )}
+    <div style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid var(--color-gray-200)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <p style={{ fontSize: 11, fontWeight: 600, color: "var(--color-gray-400)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          {showAll ? "All Resume Scans" : "This Resume — Progress"}
+        </p>
+        <button onClick={onToggle} style={{ fontSize: 11, color: "var(--color-red)", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", padding: "3px 10px", borderRadius: "var(--radius-full)", border: "1px solid var(--color-red-border)" }}>
+          {showAll ? "Show current file only" : "All scans →"}
+        </button>
       </div>
+
+      {showAll ? (
+        // Option A — grouped by filename
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {Object.entries(grouped).map(([fileName, fileScans]) => (
+            <div key={fileName}>
+              <p style={{ fontSize: 11, color: "var(--color-gray-600)", fontWeight: 600, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", background: "var(--color-gray-100)", borderRadius: 4, color: "var(--color-gray-400)" }}>
+                  {fileName.split(".").pop()?.toUpperCase()}
+                </span>
+                {fileName}
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                {fileScans.map((s, i) => {
+                  const { grade, color } = getLetterGrade(s.score);
+                  return (
+                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 10, background: color, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                          <span style={{ fontSize: 9, fontWeight: 700 }}>{grade}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700 }}>{s.score}</span>
+                        </div>
+                        <p style={{ fontSize: 10, color: "var(--color-gray-400)", marginTop: 3 }}>
+                          {new Date(s.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </p>
+                      </div>
+                      {i < fileScans.length - 1 && (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                          <div style={{ height: 1, width: 20, background: "var(--color-gray-200)" }} />
+                          {fileScans[i + 1].score !== s.score && (
+                            <span style={{ fontSize: 9, fontWeight: 700, color: fileScans[i + 1].score > s.score ? "#16a34a" : "#dc2626" }}>
+                              {fileScans[i + 1].score > s.score ? "+" : ""}{fileScans[i + 1].score - s.score}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        // Option B — current file progress only
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          {currentFileScans.map((s, i) => {
+            const { grade, color } = getLetterGrade(s.score);
+            return (
+              <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: color, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                    <span style={{ fontSize: 10, fontWeight: 700 }}>{grade}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700 }}>{s.score}</span>
+                  </div>
+                  <p style={{ fontSize: 11, color: "var(--color-gray-400)", marginTop: 4 }}>
+                    {new Date(s.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </p>
+                </div>
+                {i < currentFileScans.length - 1 && (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                    <div style={{ height: 1, width: 24, background: "var(--color-gray-200)" }} />
+                    {currentFileScans[i + 1].score !== s.score && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: currentFileScans[i + 1].score > s.score ? "#16a34a" : "#dc2626" }}>
+                        {currentFileScans[i + 1].score > s.score ? "+" : ""}{currentFileScans[i + 1].score - s.score}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {currentFileScans.length === 1 && (
+            <p style={{ fontSize: 12, color: "var(--color-gray-400)", fontStyle: "italic" }}>Scan again after editing to track progress</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div style={{
+      background: "#fff",
+      border: "1px solid var(--color-gray-200)",
+      borderRadius: "var(--radius-lg)",
+      padding: 24,
+      ...style,
+    }}>
       {children}
     </div>
   );
 }
 
-function IssueBadge({ level }: { level: "critical" | "improve" | "nice" }) {
-  const styles = {
-    critical: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
-    improve: "bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300",
-    nice: "bg-gray-100 text-[#C8102E] dark:bg-gray-900 dark:text-gray-300",
-  };
-  const labels = { critical: "Critical", improve: "Improve", nice: "Nice to have" };
-  return <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${styles[level]}`}>{labels[level]}</span>;
-}
-
-function WeakVerbCard({ verb }: { verb: string }) {
-  const replacements = WEAK_VERB_REPLACEMENTS[verb.toLowerCase()] || ["strengthen", "drive", "lead", "build"];
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3 p-3 rounded-xl border border-orange-100 dark:border-orange-900 bg-orange-50 dark:bg-orange-950">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="px-2 py-0.5 bg-orange-200 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded text-xs font-mono font-bold line-through">{verb}</span>
-          <span className="text-orange-400 text-xs">→ try</span>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {replacements.map((r) => (
-            <span key={r} className="px-2 py-0.5 bg-white dark:bg-gray-800 border border-orange-200 dark:border-orange-700 text-orange-700 dark:text-orange-300 rounded text-xs font-semibold">{r}</span>
-          ))}
-        </div>
-      </div>
-    </div>
+    <p style={{ fontSize: 11, fontWeight: 600, color: "var(--color-gray-400)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>
+      {children}
+    </p>
   );
 }
 
-function ScanTimeline({ scans }: { scans: ScanRecord[] }) {
-  if (!scans.length) return null;
+function IssuePill({ level }: { level: "critical" | "improve" | "nice" }) {
+  const styles = {
+    critical: { background: "rgba(220,38,38,0.08)", color: "#dc2626", border: "1px solid rgba(220,38,38,0.2)" },
+    improve: { background: "rgba(202,138,4,0.08)", color: "#ca8a04", border: "1px solid rgba(202,138,4,0.2)" },
+    nice: { background: "rgba(107,114,128,0.08)", color: "#6b7280", border: "1px solid rgba(107,114,128,0.2)" },
+  };
+  const labels = { critical: "● Critical", improve: "● Improve", nice: "● Nice to have" };
   return (
-    <div className="mt-2 pt-5 border-t border-gray-100 dark:border-gray-800">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Progress Timeline</p>
-      <div className="flex items-center gap-3 flex-wrap">
-        {scans.map((s, i) => {
-          const { grade, color } = getLetterGrade(s.score);
-          return (
-            <div key={s.id} className="flex items-center gap-3">
-              <div className="text-center">
-                <div className="w-12 h-12 rounded-2xl flex flex-col items-center justify-center text-white shadow-sm font-bold"
-                  style={{ background: color }}>
-                  <span className="text-xs">{grade}</span>
-                  <span className="text-xs">{s.score}</span>
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  {new Date(s.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                </p>
-              </div>
-              {i < scans.length - 1 && (
-                <div className="flex flex-col items-center">
-                  <div className="h-px w-6 bg-gray-300 dark:bg-gray-700" />
-                  {scans[i + 1].score > s.score && (
-                    <span className="text-xs text-green-600 font-bold">+{scans[i + 1].score - s.score}</span>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
+    <span style={{ ...styles[level], borderRadius: "var(--radius-full)", padding: "2px 10px", fontSize: 11, fontWeight: 600 }}>
+      {labels[level]}
+    </span>
+  );
+}
+
+function WeakVerbRow({ verb }: { verb: string }) {
+  const replacements = WEAK_VERB_REPLACEMENTS[verb.toLowerCase()] || ["strengthen", "drive", "lead", "build"];
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--color-gray-100)" }}>
+      <span style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 600, color: "#dc2626", textDecoration: "line-through", minWidth: 100 }}>{verb}</span>
+      <span style={{ fontSize: 12, color: "var(--color-gray-400)" }}>→ try</span>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {replacements.map(r => (
+          <span key={r} style={{ padding: "2px 10px", borderRadius: "var(--radius-full)", border: "1px solid var(--color-gray-200)", fontSize: 12, fontWeight: 500, color: "var(--color-gray-600)", background: "var(--color-gray-100)" }}>{r}</span>
+        ))}
       </div>
     </div>
   );
@@ -236,17 +355,14 @@ function ScanTimeline({ scans }: { scans: ScanRecord[] }) {
 
 function FileIcon({ name }: { name: string }) {
   const ext = name.split(".").pop()?.toLowerCase();
-  if (ext === "pdf") return <span className="text-red-500 font-bold text-xs">PDF</span>;
-  if (ext === "docx" || ext === "doc") return <span className="text-gray-400 font-bold text-xs">DOC</span>;
-  return <span className="text-gray-500 font-bold text-xs">TXT</span>;
+  const colors: Record<string, string> = { pdf: "#dc2626", docx: "#2563eb", doc: "#2563eb" };
+  return <span style={{ fontSize: 10, fontWeight: 700, color: colors[ext || ""] || "#6b7280" }}>{(ext || "file").toUpperCase()}</span>;
 }
 
 export default function ResumeAIPage() {
   const [activeTab, setActiveTab] = useState<Tab>("jd");
-  const [darkMode, setDarkMode] = useState(true);
   const userId = "demo-user";
 
-  // Tab 1
   const [mode, setMode] = useState<Mode>("jd");
   const [resumeFile, setResumeFile] = useState<{ name: string; content: string } | null>(null);
   const [resumeText, setResumeText] = useState("");
@@ -257,9 +373,10 @@ export default function ResumeAIPage() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [tab1History, setTab1History] = useState<ScanRecord[]>([]);
+  const [showAllTab1, setShowAllTab1] = useState(false);
+  const [showAllTab2, setShowAllTab2] = useState(false);
   const atsInfo = company ? lookupATS(company) : null;
 
-  // Tab 2
   const [atsResumeFile, setAtsResumeFile] = useState<{ name: string; content: string } | null>(null);
   const [atsResumeText, setAtsResumeText] = useState("");
   const [atsResult, setAtsResult] = useState<ATSResult | null>(null);
@@ -267,7 +384,6 @@ export default function ResumeAIPage() {
   const [showAtsGood, setShowAtsGood] = useState(false);
   const [tab2History, setTab2History] = useState<ScanRecord[]>([]);
 
-  // Tab 3
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSession, setActiveSession] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -275,11 +391,15 @@ export default function ResumeAIPage() {
   const [chatLoading, setChatLoading] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  const [chatSearch, setChatSearch] = useState("");
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const chatFileRef = useRef<HTMLInputElement>(null);
 
-  const loadHistory = useCallback(async (scanType: string, setter: (s: ScanRecord[]) => void) => {
-    const res = await fetch(`/api/resume-ai/history?userId=${userId}&scanType=${scanType}`);
+  const loadHistory = useCallback(async (scanType: string, setter: (s: ScanRecord[]) => void, fileName?: string, allScans = false) => {
+    const params = new URLSearchParams({ userId, scanType });
+    if (fileName && !allScans) params.set("fileName", fileName);
+    if (allScans) params.set("all", "true");
+    const res = await fetch(`/api/resume-ai/history?${params}`);
     setter(await res.json());
   }, [userId]);
 
@@ -328,12 +448,8 @@ export default function ResumeAIPage() {
       const content = await parseFile(file);
       newFiles.push({ name: file.name, content, type: file.name.split(".").pop() || "txt" });
     }
-    setAttachedFiles((prev) => [...prev, ...newFiles].slice(0, 3));
+    setAttachedFiles(prev => [...prev, ...newFiles].slice(0, 3));
     e.target.value = "";
-  };
-
-  const removeAttachedFile = (idx: number) => {
-    setAttachedFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const handleAnalyze = async () => {
@@ -345,10 +461,10 @@ export default function ResumeAIPage() {
       const res = await fetch("/api/resume-ai/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resumeText: text, jdText: mode === "jd" ? jdText : undefined, role: mode === "role" ? (customRole || selectedRole) : undefined, mode, userId }),
+        body: JSON.stringify({ resumeText: text, jdText: mode === "jd" ? jdText : undefined, role: mode === "role" ? (customRole || selectedRole) : undefined, mode, userId, fileName: resumeFile?.name }),
       });
       setAnalysisResult(await res.json());
-      loadHistory(mode === "jd" ? "JD_MATCH" : "ROLE_RATE", setTab1History);
+      loadHistory(mode === "jd" ? "JD_MATCH" : "ROLE_RATE", setTab1History, resumeFile?.name, showAllTab1);
     } finally { setAnalyzing(false); }
   };
 
@@ -361,10 +477,10 @@ export default function ResumeAIPage() {
       const res = await fetch("/api/resume-ai/ats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resumeText: text, userId }),
+        body: JSON.stringify({ resumeText: text, userId, fileName: atsResumeFile?.name }),
       });
       setAtsResult(await res.json());
-      loadHistory("ATS", setTab2History);
+      loadHistory("ATS", setTab2History, atsResumeFile?.name, showAllTab2);
     } finally { setAtsScanning(false); }
   };
 
@@ -377,7 +493,7 @@ export default function ResumeAIPage() {
 
   const loadSession = (session: ChatSession) => {
     setActiveSession(session.id);
-    setChatMessages(session.messages.map((m) => ({ role: m.role.toLowerCase() as "user" | "assistant", content: m.content })));
+    setChatMessages(session.messages.map(m => ({ role: m.role.toLowerCase() as "user" | "assistant", content: m.content })));
     setShowWelcome(false);
   };
 
@@ -394,18 +510,14 @@ export default function ResumeAIPage() {
     setAttachedFiles([]);
     try {
       const combinedFileContent = filesToSend.map(f => `=== ${f.name} ===\n${f.content}`).join("\n\n");
-      const combinedFileNames = filesToSend.map(f => f.name).join(", ");
       const res = await fetch("/api/resume-ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: newMessages,
-          sessionId: activeSession,
-          userId,
-          newSession: !activeSession,
-          title: content.slice(0, 40) || combinedFileNames,
+          messages: newMessages, sessionId: activeSession, userId,
+          newSession: !activeSession, title: content.slice(0, 40) || filesToSend.map(f => f.name).join(", "),
           fileContent: filesToSend.length > 0 ? combinedFileContent : undefined,
-          fileName: filesToSend.length > 0 ? combinedFileNames : undefined,
+          fileName: filesToSend.length > 0 ? filesToSend.map(f => f.name).join(", ") : undefined,
         }),
       });
       const data = await res.json();
@@ -424,696 +536,998 @@ export default function ResumeAIPage() {
     return groups;
   };
 
+  const inputStyle: React.CSSProperties = {
+    width: "100%", fontSize: 14, padding: "11px 14px",
+    border: "1px solid var(--color-gray-200)", borderRadius: "var(--radius-md)",
+    fontFamily: "var(--font-body)", color: "var(--color-black)",
+    background: "#fff", outline: "none", transition: "border-color 0.15s",
+  };
+
+  const textareaStyle: React.CSSProperties = {
+    ...inputStyle, resize: "none", lineHeight: 1.6,
+  };
+
+  const btnPrimary: React.CSSProperties = {
+    display: "inline-flex", alignItems: "center", gap: 8,
+    padding: "12px 28px", borderRadius: "var(--radius-full)",
+    background: "var(--color-red)", color: "#fff",
+    fontWeight: 600, fontSize: 14, border: "none",
+    cursor: "pointer", fontFamily: "var(--font-body)",
+    boxShadow: "var(--shadow-red)", transition: "all 0.15s ease",
+  };
+
+  const btnOutline: React.CSSProperties = {
+    display: "inline-flex", alignItems: "center", gap: 8,
+    padding: "11px 20px", borderRadius: "var(--radius-full)",
+    background: "transparent", color: "var(--color-black)",
+    fontWeight: 500, fontSize: 13, fontFamily: "var(--font-body)",
+    border: "1.5px solid var(--color-gray-200)", cursor: "pointer",
+    transition: "all 0.15s ease",
+  };
+
   return (
-    <div className={darkMode ? "dark" : ""}>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div style={{ background: "#fff", minHeight: "100vh", fontFamily: "var(--font-body)" }}>
 
-        {/* Topbar */}
-        <div className="bg-[#C8102E] px-6 py-3 flex items-center justify-between shadow">
-          <div className="flex items-center gap-3">
-            <img src="/neu-logo.png" alt="NEU" className="h-8 w-auto" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-            <div>
-              <p className="text-white font-bold text-sm leading-tight">NUMockBuddy</p>
-              <p className="text-red-200 text-xs">Resume AI</p>
-            </div>
+      {/* Header */}
+      <div style={{ background: "var(--color-red)", padding: "12px 32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <img src="/neu-logo.png" alt="NEU" style={{ height: 32 }} onError={e => { e.currentTarget.style.display = "none"; }} />
+          <div>
+            <p style={{ color: "#fff", fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>NUMockBuddy</p>
+            <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 11 }}>Resume AI</p>
           </div>
-          <button onClick={() => setDarkMode(!darkMode)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white text-xs font-medium">
-            {darkMode ? "☀️ Light" : "🌙 Dark"}
-          </button>
         </div>
+        <a href="/" style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, textDecoration: "none", fontWeight: 500 }}>← Back to home</a>
+      </div>
 
-        {/* Tab Bar */}
-        <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6">
-          <div className="max-w-5xl mx-auto flex">
-            {(["jd", "ats", "chat"] as Tab[]).map((t) => {
-              const labels = { jd: "JD vs Resume", ats: "ATS Scanner", chat: "Career Assistant" };
+      {/* Hero */}
+      <div style={{ position: "relative", overflow: "hidden", padding: "56px 32px 48px", borderBottom: "1px solid var(--color-gray-200)", background: "#fff" }}>
+        <div style={{
+          position: "absolute", inset: 0,
+          backgroundImage: "linear-gradient(var(--color-gray-200) 1px, transparent 1px), linear-gradient(90deg, var(--color-gray-200) 1px, transparent 1px)",
+          backgroundSize: "40px 40px", opacity: 0.4, pointerEvents: "none",
+        }} />
+        <div style={{ position: "absolute", top: -80, right: "10%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(200,16,46,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
+          <div style={{ marginBottom: 16 }}>
+            <span style={{ padding: "4px 14px", borderRadius: "var(--radius-full)", border: "1px solid var(--color-red-border)", background: "var(--color-red-muted)", color: "var(--color-red)", fontSize: 12, fontWeight: 500 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--color-red)", display: "inline-block", marginRight: 6, animation: "pulse-dot 1.5s ease-in-out infinite" }} />
+              AI Resume Intelligence · Built for Northeastern Seattle
+            </span>
+          </div>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 400, lineHeight: 1.1, letterSpacing: "-1px", color: "var(--color-black)", marginBottom: 16 }}>
+            Know exactly what's{" "}
+            <span style={{ color: "var(--color-red)", fontStyle: "italic" }}>missing.</span>
+          </h1>
+          <p style={{ fontSize: 16, color: "var(--color-gray-600)", lineHeight: 1.7, maxWidth: 520, marginBottom: 32 }}>
+            Paste your resume, add a job description, and get role-specific analysis — keyword gaps, ATS compatibility, bullet rewrites, and a career assistant that knows Northeastern co-op patterns.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {["JD vs Resume", "ATS Scanner", "Career Assistant"].map((label, i) => {
+              const tabs: Tab[] = ["jd", "ats", "chat"];
+              const active = activeTab === tabs[i];
               return (
-                <button key={t} onClick={() => setActiveTab(t)}
-                  className={`px-5 py-3.5 text-sm font-semibold border-b-2 transition-all ${activeTab === t ? "border-[#C8102E] text-[#C8102E]" : "border-transparent text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"}`}>
-                  {labels[t]}
+                <button key={label} onClick={() => setActiveTab(tabs[i])}
+                  style={active ? btnPrimary : btnOutline}>
+                  {label}
+                  {active && <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                 </button>
               );
             })}
           </div>
         </div>
+      </div>
 
-        <div className="max-w-5xl mx-auto px-6 py-8">
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 32px" }}>
 
-          {/* ===== TAB 1: JD vs Resume ===== */}
-          {activeTab === "jd" && (
-            <div>
-              <div className="flex gap-2 mb-6">
-                {(["jd", "role"] as Mode[]).map((m) => (
-                  <button key={m} onClick={() => { setMode(m); setAnalysisResult(null); }}
-                    className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${mode === m ? "bg-[#C8102E] text-white border-[#C8102E]" : "bg-white dark:bg-gray-900 text-gray-500 border-gray-300 dark:border-gray-700 hover:border-[#C8102E]"}`}>
-                    {m === "jd" ? "I have a JD" : "No JD, pick a role"}
-                  </button>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-                {/* Resume */}
-                <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
-                  <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">Your Resume</p>
-                  <label className={`flex flex-col items-center justify-center w-full border-2 border-dashed rounded-xl p-4 cursor-pointer transition-all mb-3 ${resumeFile ? "border-green-400 bg-green-50 dark:bg-green-950" : "border-gray-200 dark:border-gray-700 hover:border-[#C8102E] hover:bg-red-50 dark:hover:bg-red-950"}`}>
-                    <input type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={handleResumeUpload} />
-                    {resumeFile ? (
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-xl flex items-center justify-center">
-                          <span className="text-green-600 font-bold text-xs">{resumeFile.name.split(".").pop()?.toUpperCase()}</span>
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-green-700 dark:text-green-300">{resumeFile.name}</p>
-                          <p className="text-xs text-green-500">Ready to analyze · click to replace</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center mb-2">
-                          <span className="text-xl">📄</span>
-                        </div>
-                        <p className="text-sm font-medium text-gray-500">Upload PDF or DOCX</p>
-                        <p className="text-xs text-gray-400 mt-0.5">or paste below</p>
-                      </>
-                    )}
-                  </label>
-                  <textarea value={resumeText} onChange={(e) => { setResumeText(e.target.value); setResumeFile(null); }}
-                    placeholder="Or paste resume text here..."
-                    className="w-full h-36 text-sm p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 resize-none focus:outline-none focus:ring-2 focus:ring-[#C8102E]/30 placeholder:text-gray-400" />
-                </div>
-
-                {/* JD / Role */}
-                <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
-                  {mode === "jd" ? (
-                    <>
-                      <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">Job Description</p>
-                      <textarea value={jdText} onChange={(e) => setJdText(e.target.value)} placeholder="Paste the full job description..."
-                        className="w-full h-28 text-sm p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 resize-none focus:outline-none focus:ring-2 focus:ring-[#C8102E]/30 placeholder:text-gray-400 mb-3" />
-                      <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company name (optional — shows ATS info)"
-                        className="w-full text-sm p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#C8102E]/30 placeholder:text-gray-400" />
-                      {atsInfo && (
-                        <div className="mt-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 flex items-start gap-2">
-                          <span className="text-gray-400 mt-0.5 flex-shrink-0">ℹ</span>
-                          <div>
-                            <p className="text-xs font-bold text-[#C8102E] dark:text-gray-300">{company} uses {atsInfo.ats}</p>
-                            <p className="text-xs text-gray-400 dark:text-gray-400 mt-0.5">{atsInfo.note}</p>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">Target Role</p>
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        {ROLES.map((r) => (
-                          <button key={r} onClick={() => setSelectedRole(r)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${selectedRole === r ? "bg-[#C8102E] text-white border-[#C8102E]" : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-[#C8102E]"}`}>
-                            {r}
-                          </button>
-                        ))}
-                      </div>
-                      <input value={customRole} onChange={(e) => setCustomRole(e.target.value)} placeholder="Or type a custom role..."
-                        className="w-full text-sm p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#C8102E]/30 placeholder:text-gray-400" />
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex justify-end mb-8">
-                <button onClick={handleAnalyze} disabled={analyzing || (!resumeFile && !resumeText)}
-                  className="px-8 py-3 bg-[#C8102E] text-white text-sm font-bold rounded-xl disabled:opacity-40 hover:bg-red-700 transition-all shadow-sm hover:shadow-md">
-                  {analyzing ? "Analyzing..." : "Analyze Resume →"}
+        {/* ===== TAB 1: JD vs Resume ===== */}
+        {activeTab === "jd" && (
+          <div className="animate-fade-up animate-delay-1">
+            <div style={{ display: "flex", gap: 8, marginBottom: 28 }}>
+              {(["jd", "role"] as Mode[]).map(m => (
+                <button key={m} onClick={() => { setMode(m); setAnalysisResult(null); }}
+                  style={mode === m ? { ...btnPrimary, padding: "9px 20px", fontSize: 13 } : { ...btnOutline, padding: "8px 20px", fontSize: 13 }}>
+                  {m === "jd" ? "I have a JD" : "No JD, pick a role"}
                 </button>
-              </div>
-
-              {analyzing && (
-                <div className="text-center py-16">
-                  <div className="inline-flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 border-4 border-gray-100 border-t-[#C8102E] rounded-full animate-spin" />
-                    <p className="text-sm text-gray-400 font-medium">Analyzing your resume like a real ATS...</p>
-                  </div>
-                </div>
-              )}
-
-              {analysisResult && !analyzing && (
-                <div className="space-y-4">
-                  {/* Hero Score Row */}
-                  <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
-                    <div className="flex flex-col sm:flex-row items-center gap-8">
-                      <div className="flex flex-col items-center gap-2">
-                        <ScoreGauge score={analysisResult.score} label="Match Score" />
-                        {analysisResult.atsProbability !== undefined && (
-                          <div className="text-center mt-1">
-                            <p className="text-xs text-gray-400">ATS Pass Probability</p>
-                            <p className="text-xl font-black" style={{ color: analysisResult.atsProbability >= 70 ? "#16a34a" : analysisResult.atsProbability >= 50 ? "#ca8a04" : "#dc2626" }}>
-                              {analysisResult.atsProbability}%
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {[
-                          { label: "Resume Length", value: analysisResult.resumeLength || "—", icon: "📏" },
-                          { label: "GPA", value: analysisResult.hasGPA ? "Present ✓" : "Missing ✗", icon: "🎓", ok: analysisResult.hasGPA },
-                          { label: "GitHub", value: analysisResult.hasGitHub ? "Present ✓" : "Missing ✗", icon: "💻", ok: analysisResult.hasGitHub },
-                          { label: "LinkedIn", value: analysisResult.hasLinkedIn ? "Present ✓" : "Missing ✗", icon: "🔗", ok: analysisResult.hasLinkedIn },
-                        ].map((item) => (
-                          <div key={item.label} className={`p-3 rounded-xl text-center border ${item.ok === false ? "border-red-100 dark:border-red-900 bg-red-50 dark:bg-red-950" : item.ok === true ? "border-green-100 dark:border-green-900 bg-green-50 dark:bg-green-950" : "border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800"}`}>
-                            <p className="text-lg mb-1">{item.icon}</p>
-                            <p className="text-xs text-gray-400 mb-0.5">{item.label}</p>
-                            <p className={`text-xs font-bold ${item.ok === false ? "text-red-600" : item.ok === true ? "text-green-600" : "text-gray-600 dark:text-gray-300"}`}>{item.value}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                      <div className="flex gap-3 flex-wrap">
-                        {analysisResult.firstPersonIssues && <IssueBadge level="critical" />}
-                        {analysisResult.tenseMixing && <span className="text-xs text-yellow-600 font-medium">⚠ Mixed tenses detected</span>}
-                        {analysisResult.impactVsResponsibility && (
-                          <span className="text-xs text-gray-500">Impact style: <strong className="text-gray-700 dark:text-gray-300">{analysisResult.impactVsResponsibility}</strong></span>
-                        )}
-                      </div>
-                      <button onClick={() => setActiveTab("chat")}
-                        className="text-xs px-4 py-1.5 bg-[#C8102E]/10 text-[#C8102E] rounded-full hover:bg-[#C8102E]/20 font-semibold transition-colors">
-                        Fix with Career Assistant →
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Keywords Card */}
-                  {mode === "jd" && (
-                    <CategoryCard title="Keyword Match" score={analysisResult.score} icon="🔍">
-                      {(analysisResult.requiredKeywords?.length || 0) > 0 && (
-                        <div className="mb-3">
-                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Required</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {analysisResult.requiredKeywords?.map((k) => {
-                              const matched = analysisResult.matchedKeywords?.includes(k);
-                              const semantic = analysisResult.semanticMatches?.includes(k);
-                              return (
-                                <span key={k} className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${matched ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300" : semantic ? "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300" : "bg-red-100 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300"}`}>
-                                  {matched ? "✓ " : semantic ? "~ " : "✗ "}{k}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                      {(analysisResult.preferredKeywords?.length || 0) > 0 && (
-                        <div>
-                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Preferred</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {analysisResult.preferredKeywords?.map((k) => {
-                              const matched = analysisResult.matchedKeywords?.includes(k);
-                              return (
-                                <span key={k} className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${matched ? "bg-gray-100 text-[#C8102E] border-gray-200" : "bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400"}`}>
-                                  {matched ? "✓ " : ""}{k}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                      <div className="flex gap-4 text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
-                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" />Exact match</span>
-                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500 inline-block" />Semantic match</span>
-                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" />Missing</span>
-                      </div>
-                    </CategoryCard>
-                  )}
-
-                  {mode === "role" && analysisResult.bars && (
-                    <CategoryCard title="Role Fit Scores" icon="🎯">
-                      <div className="space-y-3">
-                        {Object.entries(analysisResult.bars).map(([k, v]) => {
-                          const color = v >= 75 ? "#16a34a" : v >= 50 ? "#ca8a04" : "#dc2626";
-                          const { grade } = getLetterGrade(v);
-                          return (
-                            <div key={k}>
-                              <div className="flex justify-between items-center mb-1">
-                                <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">{k.charAt(0).toUpperCase() + k.slice(1)}</span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ color, background: `${color}20` }}>{grade}</span>
-                                  <span className="text-sm font-bold" style={{ color }}>{v}</span>
-                                </div>
-                              </div>
-                              <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${v}%`, background: color }} />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </CategoryCard>
-                  )}
-
-                  {/* Role Fit */}
-                  {mode === "jd" && (analysisResult.seniorityMatch || analysisResult.domainMatch) && (
-                    <CategoryCard title="Role Fit Analysis" icon="🎯">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {[
-                          { label: "Seniority", value: analysisResult.seniorityMatch, note: analysisResult.seniorityNote },
-                          { label: "Domain", value: analysisResult.domainMatch, note: analysisResult.domainNote },
-                          { label: "Experience Years", value: analysisResult.experienceYearsMatch ? "strong" : "weak", note: analysisResult.experienceNote },
-                          { label: "Leadership", value: analysisResult.leadershipSignals, note: undefined },
-                        ].filter(i => i.value).map((item) => (
-                          <div key={item.label} className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">{item.label}</p>
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${item.value === "strong" || item.value === "moderate" ? "bg-green-100 text-green-700" : item.value === "partial" || item.value === "weak" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"}`}>
-                                {item.value}
-                              </span>
-                            </div>
-                            {item.note && <p className="text-xs text-gray-400 leading-relaxed">{item.note}</p>}
-                          </div>
-                        ))}
-                      </div>
-                    </CategoryCard>
-                  )}
-
-                  {/* Bullet Quality */}
-                  <CategoryCard title="Bullet & Writing Quality" icon="✍️">
-                    <div className="space-y-4">
-                      {(analysisResult.weakVerbs?.length || 0) > 0 && (
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <IssueBadge level="improve" />
-                            <p className="text-xs font-bold text-gray-600 dark:text-gray-300">Weak Verbs — swap these out</p>
-                          </div>
-                          <div className="space-y-2">
-                            {analysisResult.weakVerbs?.slice(0, 5).map((v) => <WeakVerbCard key={v} verb={v} />)}
-                          </div>
-                        </div>
-                      )}
-                      {(analysisResult.missingMetrics?.length || 0) > 0 && (
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <IssueBadge level="improve" />
-                            <p className="text-xs font-bold text-gray-600 dark:text-gray-300">Bullets missing numbers</p>
-                          </div>
-                          <div className="space-y-2">
-                            {analysisResult.missingMetrics?.slice(0, 3).map((b, i) => (
-                              <div key={i} className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-                                <p className="text-xs text-gray-500 line-clamp-2">"{b}"</p>
-                                <p className="text-xs text-[#C8102E] mt-1 font-medium">→ Add scale, %, users, or time saved</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {(analysisResult.formattingIssues?.length || 0) > 0 && (
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <IssueBadge level="nice" />
-                            <p className="text-xs font-bold text-gray-600 dark:text-gray-300">Formatting notes</p>
-                          </div>
-                          <ul className="space-y-1">
-                            {analysisResult.formattingIssues?.map((f, i) => (
-                              <li key={i} className="text-xs text-gray-500 flex items-start gap-1.5"><span className="text-gray-300 mt-0.5">·</span>{f}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </CategoryCard>
-
-                  {/* Strongest Bullets */}
-                  {(analysisResult.strongestBullets?.length || 0) > 0 && (
-                    <CategoryCard title="Your Strongest Bullets" icon="⭐">
-                      <div className="space-y-3">
-                        {analysisResult.strongestBullets?.map((b, i) => (
-                          <div key={i} className="p-3 rounded-xl bg-green-50 dark:bg-green-950 border border-green-100 dark:border-green-900">
-                            <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{b}</p>
-                            <p className="text-xs text-green-600 dark:text-green-400 mt-1.5 font-medium">✓ Strong action verb + measurable result</p>
-                          </div>
-                        ))}
-                      </div>
-                    </CategoryCard>
-                  )}
-
-                  {/* Improvements */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {(analysisResult.topImprovements?.length || 0) > 0 && (
-                      <CategoryCard title="Top Things to Add" icon="🎯">
-                        <div className="space-y-2">
-                          {analysisResult.topImprovements?.map((s, i) => (
-                            <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-900">
-                              <span className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-xs font-bold text-[#C8102E] dark:text-gray-300 flex-shrink-0 mt-0.5">{i + 1}</span>
-                              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">{s}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </CategoryCard>
-                    )}
-                    {(analysisResult.suggestions?.length || 0) > 0 && (
-                      <CategoryCard title="Rewrite Suggestions" icon="✏️">
-                        <div className="space-y-2">
-                          {analysisResult.suggestions?.map((s, i) => (
-                            <div key={i} className="p-2 rounded-lg bg-gray-50 dark:bg-gray-800 border-l-2 border-[#C8102E]">
-                              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">{s}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </CategoryCard>
-                    )}
-                  </div>
-
-                  <ScanTimeline scans={tab1History} />
-                </div>
-              )}
+              ))}
             </div>
-          )}
 
-          {/* ===== TAB 2: ATS Scanner ===== */}
-          {activeTab === "ats" && (
-            <div>
-              <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm mb-5">
-                <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">Your Resume</p>
-                <label className={`flex flex-col items-center justify-center w-full border-2 border-dashed rounded-xl p-4 cursor-pointer transition-all mb-3 ${atsResumeFile ? "border-green-400 bg-green-50 dark:bg-green-950" : "border-gray-200 dark:border-gray-700 hover:border-[#C8102E] hover:bg-red-50 dark:hover:bg-red-950"}`}>
-                  <input type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={handleAtsResumeUpload} />
-                  {atsResumeFile ? (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-xl flex items-center justify-center">
-                        <span className="text-green-600 font-bold text-xs">{atsResumeFile.name.split(".").pop()?.toUpperCase()}</span>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+              {/* Resume */}
+              <Card>
+                <SectionLabel>Your Resume</SectionLabel>
+                <label style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  border: `2px dashed ${resumeFile ? "#16a34a" : "var(--color-gray-200)"}`,
+                  borderRadius: "var(--radius-md)", padding: 20, cursor: "pointer",
+                  background: resumeFile ? "rgba(22,163,74,0.04)" : "var(--color-gray-100)",
+                  marginBottom: 12, transition: "all 0.15s",
+                }}>
+                  <input type="file" accept=".pdf,.docx,.txt" style={{ display: "none" }} onChange={handleResumeUpload} />
+                  {resumeFile ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(22,163,74,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "#16a34a" }}>{resumeFile.name.split(".").pop()?.toUpperCase()}</span>
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-green-700 dark:text-green-300">{atsResumeFile.name}</p>
-                        <p className="text-xs text-green-500">Ready to scan · click to replace</p>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: "#16a34a" }}>{resumeFile.name}</p>
+                        <p style={{ fontSize: 11, color: "#16a34a", opacity: 0.7 }}>Ready · click to replace</p>
                       </div>
                     </div>
                   ) : (
                     <>
-                      <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center mb-2">
-                        <span className="text-xl">📄</span>
-                      </div>
-                      <p className="text-sm font-medium text-gray-500">Upload PDF or DOCX</p>
-                      <p className="text-xs text-gray-400 mt-0.5">or paste below</p>
+                      <span style={{ fontSize: 24, marginBottom: 6 }}>📄</span>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: "var(--color-gray-600)" }}>Upload PDF or DOCX</p>
+                      <p style={{ fontSize: 11, color: "var(--color-gray-400)", marginTop: 2 }}>or paste below</p>
                     </>
                   )}
                 </label>
-                <textarea value={atsResumeText} onChange={(e) => { setAtsResumeText(e.target.value); setAtsResumeFile(null); }}
+                <textarea value={resumeText} onChange={e => { setResumeText(e.target.value); setResumeFile(null); }}
                   placeholder="Or paste resume text here..."
-                  className="w-full h-32 text-sm p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 resize-none focus:outline-none focus:ring-2 focus:ring-[#C8102E]/30 placeholder:text-gray-400" />
-              </div>
+                  rows={6} style={textareaStyle} />
+              </Card>
 
-              <div className="flex justify-end mb-6">
-                <button onClick={handleATSScan} disabled={atsScanning || (!atsResumeFile && !atsResumeText)}
-                  className="px-8 py-3 bg-[#C8102E] text-white text-sm font-bold rounded-xl disabled:opacity-40 hover:bg-red-700 transition-all shadow-sm hover:shadow-md">
-                  {atsScanning ? "Scanning..." : "Scan Resume →"}
-                </button>
-              </div>
-
-              {atsScanning && (
-                <div className="text-center py-16">
-                  <div className="inline-flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 border-4 border-gray-100 border-t-[#C8102E] rounded-full animate-spin" />
-                    <p className="text-sm text-gray-400 font-medium">Running through Taleo, Workday, Greenhouse parsers...</p>
-                  </div>
-                </div>
-              )}
-
-              {atsResult && !atsScanning && (
-                <div className="space-y-4">
-                  {/* Hero */}
-                  <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
-                    <div className="flex flex-col sm:flex-row items-center gap-8">
-                      <div className="flex flex-col items-center gap-1">
-                        <ScoreGauge score={atsResult.overallScore} label={atsResult.verdict} />
+              {/* JD / Role */}
+              <Card>
+                {mode === "jd" ? (
+                  <>
+                    <SectionLabel>Job Description</SectionLabel>
+                    <textarea value={jdText} onChange={e => setJdText(e.target.value)}
+                      placeholder="Paste the full job description..."
+                      rows={5} style={{ ...textareaStyle, marginBottom: 12 }} />
+                    <input value={company} onChange={e => setCompany(e.target.value)}
+                      placeholder="Company name (optional — shows ATS system)"
+                      style={inputStyle} />
+                    {atsInfo && (
+                      <div style={{ marginTop: 12, padding: "10px 14px", background: "var(--color-gray-100)", borderRadius: "var(--radius-md)", border: "1px solid var(--color-gray-200)" }}>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: "var(--color-black)", marginBottom: 2 }}>{company} uses {atsInfo.ats}</p>
+                        <p style={{ fontSize: 12, color: "var(--color-gray-600)" }}>{atsInfo.note}</p>
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-bold text-gray-600 dark:text-gray-300 mb-3">ATS System Breakdown</p>
-                        <div className="grid grid-cols-3 gap-3">
-                          {Object.entries(atsResult.atsSystems || {}).map(([sys, status]) => (
-                            <div key={sys} className={`p-3 rounded-xl border text-center ${status === "pass" ? "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800" : status === "warn" ? "bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800" : "bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800"}`}>
-                              <p className="text-xs font-bold text-gray-500 uppercase mb-1">{sys}</p>
-                              <span className={`text-xs font-black ${status === "pass" ? "text-green-700 dark:text-green-300" : status === "warn" ? "text-yellow-700 dark:text-yellow-300" : "text-red-700 dark:text-red-300"}`}>
-                                {status === "pass" ? "✓ Pass" : status === "warn" ? "⚠ Warn" : "✗ Fail"}
-                              </span>
-                            </div>
-                          ))}
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <SectionLabel>Target Role</SectionLabel>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+                      {ROLES.map(r => (
+                        <button key={r} onClick={() => setSelectedRole(r)}
+                          style={selectedRole === r
+                            ? { padding: "6px 14px", borderRadius: "var(--radius-full)", background: "var(--color-red)", color: "#fff", border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }
+                            : { padding: "6px 14px", borderRadius: "var(--radius-full)", background: "transparent", color: "var(--color-gray-600)", border: "1px solid var(--color-gray-200)", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "var(--font-body)" }}>
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                    <input value={customRole} onChange={e => setCustomRole(e.target.value)}
+                      placeholder="Or type a custom role..."
+                      style={inputStyle} />
+                  </>
+                )}
+              </Card>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 40 }}>
+              <button onClick={handleAnalyze} disabled={analyzing || (!resumeFile && !resumeText)}
+                style={{ ...btnPrimary, opacity: analyzing || (!resumeFile && !resumeText) ? 0.5 : 1 }}>
+                {analyzing ? "Analyzing..." : "Analyze Resume →"}
+              </button>
+            </div>
+
+            {analyzing && (
+              <div style={{ textAlign: "center", padding: "60px 0" }}>
+                <div style={{ width: 40, height: 40, border: "3px solid var(--color-gray-200)", borderTopColor: "var(--color-red)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }} />
+                <p style={{ fontSize: 14, color: "var(--color-gray-400)" }}>Analyzing your resume like a real ATS...</p>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              </div>
+            )}
+
+            {analysisResult && !analyzing && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+                {/* Score Hero */}
+                <Card>
+                  <div style={{ display: "flex", gap: 40, alignItems: "flex-start", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                      <ScoreGauge score={analysisResult.score} label="Match Score" />
+                      {analysisResult.atsProbability !== undefined && (
+                        <div style={{ textAlign: "center", marginTop: 8 }}>
+                          <p style={{ fontSize: 11, color: "var(--color-gray-400)", marginBottom: 2 }}>ATS Pass Probability</p>
+                          <p style={{ fontFamily: "var(--font-display)", fontSize: 28, color: analysisResult.atsProbability >= 70 ? "#16a34a" : analysisResult.atsProbability >= 50 ? "#ca8a04" : "#dc2626" }}>
+                            {analysisResult.atsProbability}%
+                          </p>
                         </div>
-                        <button onClick={() => setActiveTab("chat")}
-                          className="mt-4 text-xs px-4 py-1.5 bg-[#C8102E]/10 text-[#C8102E] rounded-full hover:bg-[#C8102E]/20 font-semibold transition-colors">
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
+                        {[
+                          { label: "Length", value: analysisResult.resumeLength || "—" },
+                          { label: "GPA", value: analysisResult.hasGPA ? "✓ Present" : "✗ Missing", ok: analysisResult.hasGPA },
+                          { label: "GitHub", value: analysisResult.hasGitHub ? "✓ Present" : "✗ Missing", ok: analysisResult.hasGitHub },
+                          { label: "LinkedIn", value: analysisResult.hasLinkedIn ? "✓ Present" : "✗ Missing", ok: analysisResult.hasLinkedIn },
+                        ].map(item => (
+                          <div key={item.label} style={{ padding: "12px", border: "1px solid var(--color-gray-200)", borderRadius: "var(--radius-md)", textAlign: "center" }}>
+                            <p style={{ fontSize: 11, color: "var(--color-gray-400)", marginBottom: 4 }}>{item.label}</p>
+                            <p style={{ fontSize: 12, fontWeight: 600, color: item.ok === false ? "#dc2626" : item.ok === true ? "#16a34a" : "var(--color-black)" }}>{item.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                        {analysisResult.firstPersonIssues && <IssuePill level="critical" />}
+                        {analysisResult.tenseMixing && <IssuePill level="improve" />}
+                        {analysisResult.impactVsResponsibility && (
+                          <span style={{ fontSize: 12, color: "var(--color-gray-400)" }}>Impact style: <strong style={{ color: "var(--color-black)" }}>{analysisResult.impactVsResponsibility}</strong></span>
+                        )}
+                        <button onClick={() => setActiveTab("chat")} style={{ ...btnOutline, padding: "6px 14px", fontSize: 12, marginLeft: "auto" }}>
                           Fix with Career Assistant →
                         </button>
                       </div>
+                      {/* Score breakdown */}
+                      {analysisResult.atsProbabilityExplanation && (
+                        <div style={{ marginTop: 12, padding: "10px 14px", background: "var(--color-gray-100)", borderRadius: "var(--radius-md)", borderLeft: "3px solid var(--color-red)" }}>
+                          <p style={{ fontSize: 12, color: "var(--color-gray-600)", lineHeight: 1.5 }}>
+                            <strong style={{ color: "var(--color-black)" }}>Score breakdown: </strong>
+                            {analysisResult.atsProbabilityExplanation}
+                          </p>
+                        </div>
+                      )}
+                      {/* Projected score */}
+                      {analysisResult.projectedScoreNote && (
+                        <div style={{ marginTop: 8, padding: "10px 14px", background: "rgba(22,163,74,0.04)", borderRadius: "var(--radius-md)", border: "1px solid rgba(22,163,74,0.2)" }}>
+                          <p style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>📈 {analysisResult.projectedScoreNote}</p>
+                        </div>
+                      )}
+                      {/* ATS System Breakdown */}
+                      {analysisResult.atsSystemBreakdown && (
+                        <div style={{ marginTop: 12 }}>
+                          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--color-gray-400)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>ATS System Breakdown</p>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            {Object.entries(analysisResult.atsSystemBreakdown).map(([sys, info]) => {
+                              const color = info.status === "pass" ? "#16a34a" : info.status === "warn" ? "#ca8a04" : "#dc2626";
+                              return (
+                                <div key={sys} style={{ flex: 1, minWidth: 140, padding: "10px 12px", border: `1px solid ${color}30`, borderRadius: "var(--radius-md)", background: `${color}06` }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                                    <p style={{ fontSize: 11, color: "var(--color-gray-400)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{sys}</p>
+                                    <span style={{ fontSize: 11, fontWeight: 700, color }}>{info.status === "pass" ? "✓ Pass" : info.status === "warn" ? "⚠ Warn" : "✗ Fail"}</span>
+                                  </div>
+                                  <p style={{ fontSize: 11, color: "var(--color-gray-600)", lineHeight: 1.4 }}>{info.note}</p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
+                  <ScanTimeline scans={tab1History} showAll={showAllTab1} onToggle={() => { setShowAllTab1(!showAllTab1); loadHistory(mode === "jd" ? "JD_MATCH" : "ROLE_RATE", setTab1History, resumeFile?.name, !showAllTab1); }} />
+                </Card>
 
-                  {/* Contact + Sections */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {atsResult.contactFields && (
-                      <CategoryCard title="Contact Info Detected" icon="📋">
-                        <div className="grid grid-cols-2 gap-2">
-                          {Object.entries(atsResult.contactFields).map(([field, found]) => (
-                            <div key={field} className={`flex items-center gap-2 p-2 rounded-lg ${found ? "bg-green-50 dark:bg-green-950" : "bg-red-50 dark:bg-red-950"}`}>
-                              <span className={`text-sm ${found ? "text-green-500" : "text-red-400"}`}>{found ? "✓" : "✗"}</span>
-                              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 capitalize">{field}</span>
+                {/* Seniority Signal */}
+                {analysisResult.senioritySignal && (
+                  <Card style={{ borderLeft: "4px solid var(--color-red)" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                      <span style={{ fontSize: 20, flexShrink: 0 }}>🎯</span>
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: "var(--color-red)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Seniority Signal</p>
+                        <p style={{ fontSize: 14, color: "var(--color-black)", lineHeight: 1.6 }}>{analysisResult.senioritySignal}</p>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
+                {/* Quick Wins */}
+                {(analysisResult.quickWins?.length || 0) > 0 && (
+                  <Card>
+                    <SectionLabel>⚡ Quick Wins — fix these first</SectionLabel>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {analysisResult.quickWins?.map((win, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", border: "1px solid var(--color-gray-200)", borderRadius: "var(--radius-md)", background: win.impact === "high" ? "rgba(200,16,46,0.02)" : "#fff" }}>
+                          <div style={{ width: 24, height: 24, borderRadius: "50%", background: win.impact === "high" ? "var(--color-red)" : "var(--color-gray-200)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: win.impact === "high" ? "#fff" : "var(--color-gray-600)" }}>{i + 1}</span>
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <p style={{ fontSize: 13, color: "var(--color-black)", fontWeight: 500, marginBottom: 4 }}>{win.action}</p>
+                            <div style={{ display: "flex", gap: 8 }}>
+                              <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: "var(--radius-full)", border: "1px solid var(--color-gray-200)", color: "var(--color-gray-400)" }}>⏱ {win.effort}</span>
+                              <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: "var(--radius-full)", background: win.impact === "high" ? "rgba(200,16,46,0.08)" : "rgba(202,138,4,0.08)", color: win.impact === "high" ? "var(--color-red)" : "#ca8a04", fontWeight: 600 }}>{win.impact} impact</span>
                             </div>
-                          ))}
+                          </div>
                         </div>
-                      </CategoryCard>
-                    )}
-                    {(atsResult.detectedSections?.length || 0) > 0 && (
-                      <CategoryCard title="Sections" icon="📑">
-                        <div className="flex flex-wrap gap-1.5">
-                          {atsResult.detectedSections?.map((s) => (
-                            <span key={s} className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300">✓ {s}</span>
-                          ))}
-                          {atsResult.missingSections?.map((s) => (
-                            <span key={s} className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">✗ {s}</span>
-                          ))}
-                        </div>
-                      </CategoryCard>
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  </Card>
+                )}
 
-                  {/* 12 checks */}
-                  <CategoryCard title="Detailed Parse Checks" icon="🔬">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {atsResult.checks.map((c) => {
-                        const icons = { pass: "✓", warn: "⚠", fail: "✗" };
-                        const colors = { pass: "text-green-600 bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800", warn: "text-yellow-600 bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800", fail: "text-red-600 bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800" };
+                {/* Keywords */}
+                {mode === "jd" && (
+                  <Card>
+                    <SectionLabel>Keyword Analysis</SectionLabel>
+                    {(analysisResult.requiredKeywords?.length || 0) > 0 && (
+                      <div style={{ marginBottom: 16 }}>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: "var(--color-gray-600)", marginBottom: 8 }}>Required</p>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {analysisResult.requiredKeywords?.map(k => {
+                            const matched = analysisResult.matchedKeywords?.includes(k);
+                            const semantic = analysisResult.semanticMatches?.includes(k);
+                            const color = matched ? "#16a34a" : semantic ? "#ca8a04" : "#dc2626";
+                            const bg = matched ? "rgba(22,163,74,0.06)" : semantic ? "rgba(202,138,4,0.06)" : "rgba(220,38,38,0.06)";
+                            return (
+                              <span key={k} style={{ padding: "3px 12px", borderRadius: "var(--radius-full)", border: `1px solid ${color}40`, background: bg, fontSize: 12, fontWeight: 500, color }}>
+                                {matched ? "✓ " : semantic ? "~ " : "✗ "}{k}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {(analysisResult.preferredKeywords?.length || 0) > 0 && (
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: "var(--color-gray-600)", marginBottom: 8 }}>Preferred</p>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {analysisResult.preferredKeywords?.map(k => {
+                            const matched = analysisResult.matchedKeywords?.includes(k);
+                            return (
+                              <span key={k} style={{ padding: "3px 12px", borderRadius: "var(--radius-full)", border: "1px solid var(--color-gray-200)", background: matched ? "rgba(22,163,74,0.06)" : "var(--color-gray-100)", fontSize: 12, fontWeight: 500, color: matched ? "#16a34a" : "var(--color-gray-600)" }}>
+                                {matched ? "✓ " : ""}{k}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 16, marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--color-gray-200)" }}>
+                      {[["#16a34a", "Exact match"], ["#ca8a04", "Semantic match"], ["#dc2626", "Missing"]].map(([color, label]) => (
+                        <span key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--color-gray-400)" }}>
+                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, display: "inline-block" }} />{label}
+                        </span>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+
+                {/* Role scores */}
+                {mode === "role" && analysisResult.bars && (
+                  <Card>
+                    <SectionLabel>Role Fit Scores</SectionLabel>
+                    {Object.entries(analysisResult.bars).map(([k, v]) => {
+                      const { grade, color } = getLetterGrade(v);
+                      return (
+                        <div key={k} style={{ marginBottom: 14 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <span style={{ fontSize: 13, color: "var(--color-gray-600)", fontWeight: 500 }}>{k.charAt(0).toUpperCase() + k.slice(1)}</span>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, padding: "1px 8px", borderRadius: 4, background: `${color}15`, color }}>{grade}</span>
+                              <span style={{ fontSize: 13, fontWeight: 700, color }}>{v}</span>
+                            </div>
+                          </div>
+                          <div style={{ height: 6, background: "var(--color-gray-200)", borderRadius: 99, overflow: "hidden" }}>
+                            <div style={{ height: "100%", borderRadius: 99, background: color, width: `${v}%`, transition: "width 0.7s ease" }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </Card>
+                )}
+
+                {/* Role Fit */}
+                {mode === "jd" && (analysisResult.seniorityMatch || analysisResult.domainMatch) && (
+                  <Card>
+                    <SectionLabel>Role Fit Analysis</SectionLabel>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      {[
+                        { label: "Seniority Match", value: analysisResult.seniorityMatch, note: analysisResult.seniorityNote },
+                        { label: "Domain Match", value: analysisResult.domainMatch, note: analysisResult.domainNote },
+                        { label: "Experience Years", value: analysisResult.experienceYearsMatch ? "strong" : "weak", note: analysisResult.experienceNote },
+                        { label: "Leadership Signals", value: analysisResult.leadershipSignals, note: undefined },
+                      ].filter(i => i.value).map(item => {
+                        const isGood = item.value === "strong" || item.value === "moderate";
                         return (
-                          <div key={c.name} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
-                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 border ${colors[c.status]}`}>{icons[c.status]}</span>
-                            <div>
-                              <p className="text-xs font-bold text-gray-700 dark:text-gray-300">{c.name}</p>
-                              <p className="text-xs text-gray-400 mt-0.5">{c.note}</p>
+                          <div key={item.label} style={{ padding: 14, border: "1px solid var(--color-gray-200)", borderRadius: "var(--radius-md)", background: "var(--color-gray-100)" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                              <p style={{ fontSize: 11, fontWeight: 600, color: "var(--color-gray-400)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{item.label}</p>
+                              <span style={{ padding: "2px 10px", borderRadius: "var(--radius-full)", fontSize: 11, fontWeight: 600, background: isGood ? "rgba(22,163,74,0.1)" : "rgba(220,38,38,0.1)", color: isGood ? "#16a34a" : "#dc2626" }}>
+                                {item.value}
+                              </span>
                             </div>
+                            {item.note && <p style={{ fontSize: 12, color: "var(--color-gray-600)", lineHeight: 1.5 }}>{item.note}</p>}
                           </div>
                         );
                       })}
                     </div>
-                  </CategoryCard>
+                  </Card>
+                )}
 
-                  {/* Severity Issues */}
-                  {(atsResult.severityIssues?.length || 0) > 0 && (
-                    <CategoryCard title="Issues by Priority" icon="🚨">
-                      <div className="space-y-2">
-                        {atsResult.severityIssues?.map((issue, i) => (
-                          <div key={i} className="p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800">
-                            <div className="flex items-center gap-2 mb-1">
-                              <IssueBadge level={issue.severity === "high" ? "critical" : issue.severity === "medium" ? "improve" : "nice"} />
-                              <p className="text-xs font-bold text-gray-700 dark:text-gray-300">{issue.issue}</p>
+                {/* Weak Verbs */}
+                {(analysisResult.weakVerbs?.length || 0) > 0 && (
+                  <Card>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                      <SectionLabel>Weak Verbs — swap these out</SectionLabel>
+                      <IssuePill level="improve" />
+                    </div>
+                    {analysisResult.weakVerbs?.slice(0, 5).map(v => <WeakVerbRow key={v} verb={v} />)}
+                  </Card>
+                )}
+
+                {/* Impact Score + Achievement Ratio */}
+                {(analysisResult.impactScore !== undefined || analysisResult.achievementRatio) && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                    {analysisResult.impactScore !== undefined && (
+                      <Card>
+                        <SectionLabel>📊 Impact Score</SectionLabel>
+                        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 10 }}>
+                          <div style={{ position: "relative", width: 64, height: 64 }}>
+                            <svg width="64" height="64" viewBox="0 0 64 64">
+                              <circle cx="32" cy="32" r="26" fill="none" stroke="var(--color-gray-200)" strokeWidth="6" />
+                              <circle cx="32" cy="32" r="26" fill="none"
+                                stroke={analysisResult.impactScore >= 70 ? "#16a34a" : analysisResult.impactScore >= 50 ? "#ca8a04" : "#dc2626"}
+                                strokeWidth="6" strokeLinecap="round"
+                                strokeDasharray={`${(analysisResult.impactScore / 100) * 163} 163`}
+                                transform="rotate(-90 32 32)" />
+                            </svg>
+                            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <span style={{ fontSize: 14, fontWeight: 700, color: analysisResult.impactScore >= 70 ? "#16a34a" : analysisResult.impactScore >= 50 ? "#ca8a04" : "#dc2626" }}>{analysisResult.impactScore}</span>
                             </div>
-                            <p className="text-xs text-gray-400 pl-1">Fix: {issue.fix}</p>
+                          </div>
+                          <div>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--color-black)" }}>{analysisResult.impactScore >= 70 ? "Strong quantification" : analysisResult.impactScore >= 50 ? "Needs more numbers" : "Most bullets lack metrics"}</p>
+                            {analysisResult.impactNote && <p style={{ fontSize: 12, color: "var(--color-gray-400)", marginTop: 2 }}>{analysisResult.impactNote}</p>}
+                          </div>
+                        </div>
+                      </Card>
+                    )}
+                    {analysisResult.achievementRatio && (
+                      <Card>
+                        <SectionLabel>🏆 Achievement vs Responsibility</SectionLabel>
+                        <div style={{ marginBottom: 8 }}>
+                          <span style={{ padding: "3px 12px", borderRadius: "var(--radius-full)", fontSize: 12, fontWeight: 600, background: analysisResult.achievementRatio === "mostly achievements" ? "rgba(22,163,74,0.08)" : analysisResult.achievementRatio === "mixed" ? "rgba(202,138,4,0.08)" : "rgba(220,38,38,0.08)", color: analysisResult.achievementRatio === "mostly achievements" ? "#16a34a" : analysisResult.achievementRatio === "mixed" ? "#ca8a04" : "#dc2626" }}>
+                            {analysisResult.achievementRatio}
+                          </span>
+                        </div>
+                        {analysisResult.achievementNote && <p style={{ fontSize: 12, color: "var(--color-gray-600)", lineHeight: 1.5 }}>{analysisResult.achievementNote}</p>}
+                        <p style={{ fontSize: 11, color: "var(--color-gray-400)", marginTop: 8 }}>Achievements: "increased X by Y%" · Responsibilities: "responsible for X"</p>
+                      </Card>
+                    )}
+                  </div>
+                )}
+
+                {/* Buzzwords + Repeated Verbs */}
+                {((analysisResult.buzzwordsFound?.length || 0) > 0 || (analysisResult.repeatedVerbs?.length || 0) > 0) && (
+                  <Card>
+                    <SectionLabel>🚩 Language Issues</SectionLabel>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {(analysisResult.buzzwordsFound?.length || 0) > 0 && (
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                            <IssuePill level="improve" />
+                            <p style={{ fontSize: 12, fontWeight: 600, color: "var(--color-black)" }}>Buzzwords — remove these</p>
+                          </div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {analysisResult.buzzwordsFound?.map(b => (
+                              <span key={b} style={{ padding: "3px 12px", borderRadius: "var(--radius-full)", background: "rgba(202,138,4,0.06)", border: "1px solid rgba(202,138,4,0.2)", fontSize: 12, fontWeight: 500, color: "#ca8a04" }}>"{b}"</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {(analysisResult.repeatedVerbs?.length || 0) > 0 && (
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                            <IssuePill level="nice" />
+                            <p style={{ fontSize: 12, fontWeight: 600, color: "var(--color-black)" }}>Repeated verbs — vary these</p>
+                          </div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {analysisResult.repeatedVerbs?.map(v => (
+                              <span key={v} style={{ padding: "3px 12px", borderRadius: "var(--radius-full)", background: "var(--color-gray-100)", border: "1px solid var(--color-gray-200)", fontSize: 12, fontWeight: 500, color: "var(--color-gray-600)" }}>{v}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                )}
+
+                {/* Structure & Formatting */}
+                {(analysisResult.dateConsistency || analysisResult.sectionOrder || analysisResult.densityScore || analysisResult.industryKeywordDensity) && (
+                  <Card>
+                    <SectionLabel>📐 Structure & Formatting</SectionLabel>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      {analysisResult.dateConsistency && (
+                        <div style={{ padding: "10px 12px", border: "1px solid var(--color-gray-200)", borderRadius: "var(--radius-md)" }}>
+                          <p style={{ fontSize: 11, color: "var(--color-gray-400)", marginBottom: 3 }}>Date Format</p>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 12, color: analysisResult.dateConsistency === "consistent" ? "#16a34a" : "#ca8a04" }}>{analysisResult.dateConsistency === "consistent" ? "✓" : "⚠"}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-black)" }}>{analysisResult.dateConsistency}</span>
+                          </div>
+                          {analysisResult.dateNote && <p style={{ fontSize: 11, color: "var(--color-gray-400)", marginTop: 3 }}>{analysisResult.dateNote}</p>}
+                        </div>
+                      )}
+                      {analysisResult.sectionOrder && (
+                        <div style={{ padding: "10px 12px", border: "1px solid var(--color-gray-200)", borderRadius: "var(--radius-md)" }}>
+                          <p style={{ fontSize: 11, color: "var(--color-gray-400)", marginBottom: 3 }}>Section Order</p>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 12, color: analysisResult.sectionOrder === "correct" ? "#16a34a" : "#ca8a04" }}>{analysisResult.sectionOrder === "correct" ? "✓" : "⚠"}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-black)" }}>{analysisResult.sectionOrder}</span>
+                          </div>
+                          {analysisResult.sectionOrderNote && <p style={{ fontSize: 11, color: "var(--color-gray-400)", marginTop: 3 }}>{analysisResult.sectionOrderNote}</p>}
+                        </div>
+                      )}
+                      {analysisResult.densityScore && (
+                        <div style={{ padding: "10px 12px", border: "1px solid var(--color-gray-200)", borderRadius: "var(--radius-md)" }}>
+                          <p style={{ fontSize: 11, color: "var(--color-gray-400)", marginBottom: 3 }}>Density</p>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: analysisResult.densityScore === "well-spaced" ? "#16a34a" : "#ca8a04" }}>{analysisResult.densityScore}</span>
+                        </div>
+                      )}
+                      {analysisResult.industryKeywordDensity && (
+                        <div style={{ padding: "10px 12px", border: "1px solid var(--color-gray-200)", borderRadius: "var(--radius-md)" }}>
+                          <p style={{ fontSize: 11, color: "var(--color-gray-400)", marginBottom: 3 }}>Industry Language</p>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: analysisResult.industryKeywordDensity === "strong" ? "#16a34a" : analysisResult.industryKeywordDensity === "moderate" ? "#ca8a04" : "#dc2626" }}>{analysisResult.industryKeywordDensity}</span>
+                          {analysisResult.industryKeywordNote && <p style={{ fontSize: 11, color: "var(--color-gray-400)", marginTop: 3 }}>{analysisResult.industryKeywordNote}</p>}
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                )}
+
+                {/* Bullet Length Issues */}
+                {(analysisResult.bulletLengthIssues?.length || 0) > 0 && (
+                  <Card>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                      <SectionLabel>📏 Bullet Length Issues</SectionLabel>
+                      <IssuePill level="nice" />
+                    </div>
+                    {analysisResult.bulletLengthIssues?.slice(0, 3).map((b, i) => (
+                      <div key={i} style={{ padding: "10px 12px", background: "var(--color-gray-100)", borderRadius: "var(--radius-md)", marginBottom: 8, borderLeft: "3px solid var(--color-gray-200)" }}>
+                        <p style={{ fontSize: 12, color: "var(--color-gray-600)", lineHeight: 1.5 }}>"{b}"</p>
+                        <p style={{ fontSize: 11, color: "var(--color-gray-400)", marginTop: 4 }}>→ Keep bullets to 1-2 lines, start with a strong verb</p>
+                      </div>
+                    ))}
+                  </Card>
+                )}
+
+                {/* Missing Metrics */}
+                {(analysisResult.missingMetrics?.length || 0) > 0 && (
+                  <Card>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                      <SectionLabel>Bullets Missing Numbers</SectionLabel>
+                      <IssuePill level="improve" />
+                    </div>
+                    {analysisResult.missingMetrics?.slice(0, 3).map((b, i) => (
+                      <div key={i} style={{ padding: "12px 14px", background: "var(--color-gray-100)", borderRadius: "var(--radius-md)", marginBottom: 8, borderLeft: "3px solid var(--color-red)" }}>
+                        <p style={{ fontSize: 13, color: "var(--color-gray-600)", marginBottom: 4, lineHeight: 1.5 }}>"{b}"</p>
+                        <p style={{ fontSize: 12, color: "var(--color-red)", fontWeight: 500 }}>→ Add scale, %, users, or time saved</p>
+                      </div>
+                    ))}
+                  </Card>
+                )}
+
+                {/* Strongest Bullets */}
+                {(analysisResult.strongestBullets?.length || 0) > 0 && (
+                  <Card>
+                    <SectionLabel>⭐ Your Strongest Bullets</SectionLabel>
+                    {analysisResult.strongestBullets?.map((b, i) => (
+                      <div key={i} style={{ padding: "12px 14px", background: "rgba(22,163,74,0.04)", borderRadius: "var(--radius-md)", marginBottom: 8, borderLeft: "3px solid #16a34a" }}>
+                        <p style={{ fontSize: 13, color: "var(--color-black)", lineHeight: 1.6 }}>{b}</p>
+                        <p style={{ fontSize: 11, color: "#16a34a", fontWeight: 500, marginTop: 4 }}>✓ Strong action verb + measurable result</p>
+                      </div>
+                    ))}
+                  </Card>
+                )}
+
+                {/* Improvements */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                  {(analysisResult.topImprovements?.length || 0) > 0 && (
+                    <Card>
+                      <SectionLabel>🎯 Top Things to Add</SectionLabel>
+                      {analysisResult.topImprovements?.map((s, i) => (
+                        <div key={i} style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                          <span style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--color-red-muted)", color: "var(--color-red)", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>{i + 1}</span>
+                          <p style={{ fontSize: 13, color: "var(--color-gray-600)", lineHeight: 1.5 }}>{s}</p>
+                        </div>
+                      ))}
+                    </Card>
+                  )}
+                  {(analysisResult.suggestions?.length || 0) > 0 && (
+                    <Card>
+                      <SectionLabel>✏️ Rewrite Suggestions</SectionLabel>
+                      {analysisResult.suggestions?.map((s, i) => (
+                        <div key={i} style={{ padding: "10px 12px", background: "var(--color-gray-100)", borderRadius: "var(--radius-md)", marginBottom: 8, borderLeft: "3px solid var(--color-red)" }}>
+                          <p style={{ fontSize: 13, color: "var(--color-gray-600)", lineHeight: 1.5 }}>{s}</p>
+                        </div>
+                      ))}
+                    </Card>
+                  )}
+                </div>
+
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===== TAB 2: ATS Scanner ===== */}
+        {activeTab === "ats" && (
+          <div className="animate-fade-up animate-delay-1">
+            <Card style={{ marginBottom: 20 }}>
+              <SectionLabel>Your Resume</SectionLabel>
+              <label style={{
+                display: "flex", flexDirection: "column", alignItems: "center",
+                border: `2px dashed ${atsResumeFile ? "#16a34a" : "var(--color-gray-200)"}`,
+                borderRadius: "var(--radius-md)", padding: 20, cursor: "pointer",
+                background: atsResumeFile ? "rgba(22,163,74,0.04)" : "var(--color-gray-100)", marginBottom: 12,
+              }}>
+                <input type="file" accept=".pdf,.docx,.txt" style={{ display: "none" }} onChange={handleAtsResumeUpload} />
+                {atsResumeFile ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(22,163,74,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "#16a34a" }}>{atsResumeFile.name.split(".").pop()?.toUpperCase()}</span>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: "#16a34a" }}>{atsResumeFile.name}</p>
+                      <p style={{ fontSize: 11, color: "#16a34a", opacity: 0.7 }}>Ready · click to replace</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <span style={{ fontSize: 24, marginBottom: 6 }}>📄</span>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: "var(--color-gray-600)" }}>Upload PDF or DOCX</p>
+                    <p style={{ fontSize: 11, color: "var(--color-gray-400)", marginTop: 2 }}>or paste below</p>
+                  </>
+                )}
+              </label>
+              <textarea value={atsResumeText} onChange={e => { setAtsResumeText(e.target.value); setAtsResumeFile(null); }}
+                placeholder="Or paste resume text here..."
+                rows={5} style={textareaStyle} />
+            </Card>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 40 }}>
+              <button onClick={handleATSScan} disabled={atsScanning || (!atsResumeFile && !atsResumeText)}
+                style={{ ...btnPrimary, opacity: atsScanning || (!atsResumeFile && !atsResumeText) ? 0.5 : 1 }}>
+                {atsScanning ? "Scanning..." : "Scan Resume →"}
+              </button>
+            </div>
+
+            {atsScanning && (
+              <div style={{ textAlign: "center", padding: "60px 0" }}>
+                <div style={{ width: 40, height: 40, border: "3px solid var(--color-gray-200)", borderTopColor: "var(--color-red)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }} />
+                <p style={{ fontSize: 14, color: "var(--color-gray-400)" }}>Running through Taleo, Workday, Greenhouse parsers...</p>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              </div>
+            )}
+
+            {atsResult && !atsScanning && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+                {/* Score */}
+                <Card>
+                  <div style={{ display: "flex", gap: 40, alignItems: "flex-start", flexWrap: "wrap" }}>
+                    <div>
+                      <ScoreGauge score={atsResult.overallScore} label={atsResult.verdict} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      {/* Score explanation */}
+                      {atsResult.scoreExplanation && (
+                        <div style={{ marginBottom: 16, padding: "10px 14px", background: "var(--color-gray-100)", borderRadius: "var(--radius-md)", borderLeft: "3px solid var(--color-red)" }}>
+                          <p style={{ fontSize: 12, color: "var(--color-gray-600)", lineHeight: 1.5 }}>
+                            <strong style={{ color: "var(--color-black)" }}>Score breakdown: </strong>{atsResult.scoreExplanation}
+                          </p>
+                        </div>
+                      )}
+                      {/* Projected score */}
+                      {atsResult.projectedScoreNote && (
+                        <div style={{ marginBottom: 16, padding: "10px 14px", background: "rgba(22,163,74,0.04)", borderRadius: "var(--radius-md)", border: "1px solid rgba(22,163,74,0.2)" }}>
+                          <p style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>
+                            📈 {atsResult.projectedScoreNote}
+                          </p>
+                        </div>
+                      )}
+                      <SectionLabel>ATS System Breakdown</SectionLabel>
+                      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+                        {Object.entries(atsResult.atsSystems || {}).map(([sys, status]) => {
+                          const color = status === "pass" ? "#16a34a" : status === "warn" ? "#ca8a04" : "#dc2626";
+                          const detail = atsResult.atsSystemDetails?.[sys];
+                          return (
+                            <div key={sys} style={{ padding: "12px 16px", border: `1px solid ${color}30`, borderRadius: "var(--radius-md)", background: `${color}06`, flex: 1, minWidth: 120 }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: detail ? 6 : 0 }}>
+                                <p style={{ fontSize: 11, color: "var(--color-gray-400)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{sys}</p>
+                                <p style={{ fontSize: 12, fontWeight: 700, color }}>{status === "pass" ? "✓ Pass" : status === "warn" ? "⚠ Warn" : "✗ Fail"}</p>
+                              </div>
+                              {detail && <p style={{ fontSize: 11, color: "var(--color-gray-600)", lineHeight: 1.4 }}>{detail}</p>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <button onClick={() => setActiveTab("chat")} style={{ ...btnOutline, padding: "8px 16px", fontSize: 12 }}>
+                        Fix with Career Assistant →
+                      </button>
+                    </div>
+                  </div>
+                  <ScanTimeline scans={tab2History} showAll={showAllTab2} onToggle={() => { setShowAllTab2(!showAllTab2); loadHistory("ATS", setTab2History, atsResumeFile?.name, !showAllTab2); }} />
+                </Card>
+
+                {/* Contact + Sections */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                  {atsResult.contactFields && (
+                    <Card>
+                      <SectionLabel>Contact Info Detected</SectionLabel>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        {Object.entries(atsResult.contactFields).map(([field, found]) => (
+                          <div key={field} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: "var(--radius-md)", background: found ? "rgba(22,163,74,0.04)" : "rgba(220,38,38,0.04)", border: `1px solid ${found ? "rgba(22,163,74,0.15)" : "rgba(220,38,38,0.15)"}` }}>
+                            <span style={{ fontSize: 13, color: found ? "#16a34a" : "#dc2626" }}>{found ? "✓" : "✗"}</span>
+                            <span style={{ fontSize: 12, fontWeight: 500, color: "var(--color-gray-600)", textTransform: "capitalize" }}>{field}</span>
                           </div>
                         ))}
                       </div>
-                    </CategoryCard>
+                    </Card>
                   )}
-
-                  {/* Before/After */}
-                  {(atsResult.isMultiColumn || atsResult.parseSimulation) && (
-                    <div className="rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-                      <div className="flex">
-                        <button onClick={() => setShowAtsGood(false)}
-                          className={`flex-1 py-3 text-sm font-bold transition-all ${!showAtsGood ? "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 border-b-2 border-red-400" : "bg-white dark:bg-gray-900 text-gray-400 hover:bg-gray-50"}`}>
-                          ✗ How ATS reads it
-                        </button>
-                        <button onClick={() => setShowAtsGood(true)}
-                          className={`flex-1 py-3 text-sm font-bold transition-all ${showAtsGood ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border-b-2 border-green-400" : "bg-white dark:bg-gray-900 text-gray-400 hover:bg-gray-50"}`}>
-                          ✓ How it should look
-                        </button>
+                  {(atsResult.detectedSections?.length || 0) > 0 && (
+                    <Card>
+                      <SectionLabel>Sections</SectionLabel>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {atsResult.detectedSections?.map(s => (
+                          <span key={s} style={{ padding: "3px 12px", borderRadius: "var(--radius-full)", background: "rgba(22,163,74,0.06)", border: "1px solid rgba(22,163,74,0.2)", fontSize: 12, fontWeight: 500, color: "#16a34a" }}>✓ {s}</span>
+                        ))}
+                        {atsResult.missingSections?.map((s, idx) => {
+                          const sec = typeof s === "string" ? { name: s, importance: "Recommended" } : s as { name: string; importance: string };
+                          const isOptional = sec.importance?.toLowerCase().includes("optional");
+                          return (
+                            <span key={idx} style={{ padding: "3px 12px", borderRadius: "var(--radius-full)", background: isOptional ? "rgba(107,114,128,0.06)" : "rgba(220,38,38,0.06)", border: `1px solid ${isOptional ? "rgba(107,114,128,0.2)" : "rgba(220,38,38,0.2)"}`, fontSize: 12, fontWeight: 500, color: isOptional ? "#6b7280" : "#dc2626" }}>
+                              ✗ {sec.name} · {isOptional ? "Optional" : "Recommended"}
+                            </span>
+                          );
+                        })}
                       </div>
-                      <div className={`p-5 font-mono text-xs leading-loose min-h-32 ${showAtsGood ? "bg-green-50 dark:bg-green-950" : "bg-red-50 dark:bg-red-950"}`}>
-                        <pre className={showAtsGood ? "text-green-700 dark:text-green-300" : "text-red-600 dark:text-red-400"}>
-                          {showAtsGood ? (atsResult.parseSimulation?.clean || "Clean format — ATS reads this correctly.") : (atsResult.parseSimulation?.garbled || "Multi-column detected — content may be scrambled.")}
-                        </pre>
-                      </div>
-                    </div>
+                    </Card>
                   )}
-
-                  <ScanTimeline scans={tab2History} />
                 </div>
-              )}
-            </div>
-          )}
 
-          {/* ===== TAB 3: Career Assistant ===== */}
-          {activeTab === "chat" && (
-            <div className="flex rounded-2xl overflow-hidden shadow-xl border border-gray-800"
-              style={{ height: "calc(100vh - 220px)", background: "transparent" }}>
-
-              {/* Sidebar */}
-              <div className="w-56 flex-shrink-0 flex flex-col"
-                style={{ background: "linear-gradient(180deg, #1a0a0a 0%, #0f0f0f 100%)", borderRight: "1px solid #2a1a1a" }}>
-                <div className="p-4" style={{ borderBottom: "1px solid #2a1a1a" }}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="relative">
-                      <div className="w-2 h-2 bg-green-400 rounded-full" />
-                      <div className="w-2 h-2 bg-green-400 rounded-full absolute inset-0 animate-ping opacity-60" />
+                {/* Quick Fix Checklist */}
+                {(atsResult.quickFixChecklist?.length || 0) > 0 && (
+                  <Card>
+                    <SectionLabel>⚡ Fix These First — ranked by impact</SectionLabel>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {atsResult.quickFixChecklist?.map((item) => (
+                        <div key={item.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", border: "1px solid var(--color-gray-200)", borderRadius: "var(--radius-md)", background: item.impact === "high" ? "rgba(200,16,46,0.02)" : "#fff" }}>
+                          <div style={{ width: 24, height: 24, borderRadius: "50%", background: item.impact === "high" ? "var(--color-red)" : item.impact === "medium" ? "#ca8a04" : "var(--color-gray-200)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: item.impact !== "low" ? "#fff" : "var(--color-gray-600)" }}>{item.id}</span>
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <p style={{ fontSize: 13, fontWeight: 500, color: "var(--color-black)", marginBottom: 4 }}>{item.action}</p>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: "var(--radius-full)", border: "1px solid var(--color-gray-200)", color: "var(--color-gray-400)" }}>⏱ {item.effort}</span>
+                              <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: "var(--radius-full)", background: item.impact === "high" ? "rgba(200,16,46,0.08)" : "rgba(202,138,4,0.08)", color: item.impact === "high" ? "var(--color-red)" : "#ca8a04", fontWeight: 600 }}>{item.impact} impact</span>
+                              {item.scoreGain && <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: "var(--radius-full)", background: "rgba(22,163,74,0.08)", color: "#16a34a", fontWeight: 600 }}>{item.scoreGain}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <span className="text-xs text-gray-400 font-mono">assistant online</span>
+                  </Card>
+                )}
+
+                {/* Checks grid */}
+                <Card>
+                  <SectionLabel>Detailed Parse Checks</SectionLabel>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    {(atsResult.checks || []).map(c => {
+                      const color = c.status === "pass" ? "#16a34a" : c.status === "warn" ? "#ca8a04" : "#dc2626";
+                      const icon = c.status === "pass" ? "✓" : c.status === "warn" ? "⚠" : "✗";
+                      return (
+                        <div key={c.name} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid var(--color-gray-200)", borderRadius: "var(--radius-md)" }}>
+                          <span style={{ width: 22, height: 22, borderRadius: "50%", background: `${color}10`, border: `1px solid ${color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color, flexShrink: 0, marginTop: 1 }}>{icon}</span>
+                          <div>
+                            <p style={{ fontSize: 12, fontWeight: 600, color: "var(--color-black)", marginBottom: 2 }}>{c.name}</p>
+                            <p style={{ fontSize: 11, color: "var(--color-gray-400)", lineHeight: 1.4 }}>{c.note}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <button onClick={startNewChat}
-                    className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90"
-                    style={{ background: "linear-gradient(135deg, #C8102E, #9b0c23)" }}>
-                    + New Chat
-                  </button>
+                </Card>
+
+                {/* Severity issues */}
+                {(atsResult.severityIssues?.length || 0) > 0 && (
+                  <Card>
+                    <SectionLabel>Issues by Priority</SectionLabel>
+                    {atsResult.severityIssues?.map((issue, i) => {
+                      const level: "critical" | "improve" | "nice" = issue.severity === "high" ? "critical" : issue.severity === "medium" ? "improve" : "nice";
+                      return (
+                        <div key={i} style={{ padding: "12px 14px", border: "1px solid var(--color-gray-200)", borderRadius: "var(--radius-md)", marginBottom: 8 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                            <IssuePill level={level} />
+                            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--color-black)" }}>{issue.issue}</p>
+                          </div>
+                          <p style={{ fontSize: 12, color: "var(--color-gray-600)", paddingLeft: 2 }}>Fix: {issue.fix}</p>
+                        </div>
+                      );
+                    })}
+                  </Card>
+                )}
+
+                {/* Before/after */}
+                {(atsResult.isMultiColumn || atsResult.parseSimulation) && (
+                  <Card style={{ padding: 0, overflow: "hidden" }}>
+                    <div style={{ display: "flex", borderBottom: "1px solid var(--color-gray-200)" }}>
+                      {[{ label: "✗ How ATS reads it", good: false }, { label: "✓ How it should look", good: true }].map(item => (
+                        <button key={item.label} onClick={() => setShowAtsGood(item.good)}
+                          style={{ flex: 1, padding: "12px", fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: "var(--font-body)", background: showAtsGood === item.good ? (item.good ? "rgba(22,163,74,0.06)" : "rgba(220,38,38,0.06)") : "#fff", color: showAtsGood === item.good ? (item.good ? "#16a34a" : "#dc2626") : "var(--color-gray-400)", borderBottom: showAtsGood === item.good ? `2px solid ${item.good ? "#16a34a" : "#dc2626"}` : "2px solid transparent", transition: "all 0.15s" }}>
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ padding: 20, background: "var(--color-gray-100)", fontFamily: "monospace", fontSize: 12, lineHeight: 1.8, minHeight: 120 }}>
+                      <pre style={{ color: showAtsGood ? "#16a34a" : "#dc2626", whiteSpace: "pre-wrap" }}>
+                        {showAtsGood ? (atsResult.parseSimulation?.clean || "Clean format — ATS reads this correctly.") : (atsResult.parseSimulation?.garbled || "Multi-column detected — content may be scrambled.")}
+                      </pre>
+                    </div>
+                  </Card>
+                )}
+
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===== TAB 3: Career Assistant ===== */}
+        {activeTab === "chat" && (
+          <div className="animate-fade-up animate-delay-1" style={{ display: "flex", gap: 20, height: "calc(100vh - 200px)", minHeight: 640 }}>
+
+            {/* Sidebar */}
+            <div style={{ width: 240, flexShrink: 0, border: "1px solid var(--color-gray-200)", borderRadius: "var(--radius-lg)", overflow: "hidden", display: "flex", flexDirection: "column", background: "#fff" }}>
+              <div style={{ padding: 12, borderBottom: "1px solid var(--color-gray-200)", display: "flex", flexDirection: "column", gap: 8 }}>
+                <button onClick={startNewChat} style={{ ...btnPrimary, width: "100%", justifyContent: "center", padding: "9px 16px", fontSize: 13 }}>
+                  + New Chat
+                </button>
+                <div style={{ position: "relative" }}>
+                  <input
+                    value={chatSearch}
+                    onChange={e => setChatSearch(e.target.value)}
+                    placeholder="Search chats..."
+                    style={{ width: "100%", fontSize: 12, padding: "7px 10px 7px 28px", border: "1px solid var(--color-gray-200)", borderRadius: "var(--radius-md)", fontFamily: "var(--font-body)", color: "var(--color-black)", background: "var(--color-gray-100)", outline: "none", boxSizing: "border-box" }}
+                  />
+                  <svg style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", opacity: 0.4 }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
                 </div>
-                <div className="flex-1 overflow-y-auto p-3 space-y-1">
-                  {Object.entries(groupSessionsByMonth()).map(([month, sess]) => (
+              </div>
+              <div style={{ flex: 1, overflowY: "auto", padding: "6px" }}>
+                {sessions.filter(s => !chatSearch || s.title?.toLowerCase().includes(chatSearch.toLowerCase()) || s.messages?.[0]?.content?.toLowerCase().includes(chatSearch.toLowerCase())).length === 0 && chatSearch ? (
+                  <p style={{ fontSize: 12, color: "var(--color-gray-400)", textAlign: "center", padding: "20px 10px" }}>No chats found</p>
+                ) : (
+                  Object.entries(
+                    sessions
+                      .filter(s => !chatSearch || s.title?.toLowerCase().includes(chatSearch.toLowerCase()) || s.messages?.[0]?.content?.toLowerCase().includes(chatSearch.toLowerCase()))
+                      .reduce((groups: Record<string, ChatSession[]>, s) => {
+                        const month = new Date(s.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+                        if (!groups[month]) groups[month] = [];
+                        groups[month].push(s);
+                        return groups;
+                      }, {})
+                  ).map(([month, sess]) => (
                     <div key={month}>
-                      <p className="text-xs px-2 py-2 font-bold uppercase tracking-widest" style={{ color: "#C8102E" }}>{month}</p>
-                      {sess.map((s) => (
+                      <p style={{ fontSize: 10, fontWeight: 700, color: "var(--color-red)", textTransform: "uppercase", letterSpacing: "0.1em", padding: "8px 8px 4px" }}>{month}</p>
+                      {sess.map(s => (
                         <button key={s.id} onClick={() => loadSession(s)}
-                          className="w-full text-left px-3 py-2 rounded-xl text-xs transition-all group"
-                          style={{ background: activeSession === s.id ? "rgba(200,16,46,0.15)" : "transparent", borderLeft: activeSession === s.id ? "2px solid #C8102E" : "2px solid transparent" }}>
-                          <p className={`truncate font-medium ${activeSession === s.id ? "text-red-400" : "text-gray-400 group-hover:text-gray-200"}`}>
+                          style={{ width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: "var(--radius-md)", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", background: activeSession === s.id ? "var(--color-red-muted)" : "transparent", borderLeft: `2px solid ${activeSession === s.id ? "var(--color-red)" : "transparent"}`, marginBottom: 2, transition: "all 0.1s" }}>
+                          <p style={{ fontSize: 12, fontWeight: 600, color: activeSession === s.id ? "var(--color-red)" : "var(--color-gray-600)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {s.title || "Untitled chat"}
                           </p>
-                          {s.messages?.[1] && (
-                            <p className="text-xs text-gray-600 truncate mt-0.5 group-hover:text-gray-500">
-                              {s.messages[1].content.slice(0, 35)}
+                          {s.messages?.[0] && (
+                            <p style={{ fontSize: 11, color: "var(--color-gray-400)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
+                              {s.messages[0].content.slice(0, 36)}
                             </p>
                           )}
                         </button>
                       ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Chat Area */}
-              <div className="flex-1 flex flex-col min-w-0" style={{ background: "#0d0d0d" }}>
-                {/* Header */}
-                <div className="px-5 py-3 flex items-center gap-3" style={{ borderBottom: "1px solid #1f1f1f" }}>
-                  <div className="relative">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-sm"
-                      style={{ background: "linear-gradient(135deg, #C8102E, #9b0c23)" }}>M</div>
-                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-[#0d0d0d]" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-white">MockMate Career Assistant</p>
-                    <p className="text-xs text-gray-500 font-mono">NEU · career intelligence</p>
-                  </div>
-                </div>
-
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                  {showWelcome ? (
-                    <div className="flex flex-col items-center justify-center h-full gap-6">
-                      <div className="text-center">
-                        <div className="w-16 h-16 rounded-2xl flex items-center justify-center font-black text-white text-2xl mx-auto mb-4"
-                          style={{ background: "linear-gradient(135deg, #C8102E, #9b0c23)" }}>M</div>
-                        <p className="text-white font-bold text-lg">MockMate Career Assistant</p>
-                        <p className="text-gray-500 text-sm mt-1">Upload your resume and ask me anything</p>
-                      </div>
-                      <div className="flex gap-2 flex-wrap justify-center max-w-lg">
-                        {QUICK_CHIPS.map((chip) => (
-                          <button key={chip.label} onClick={() => sendMessage(chip.prompt)}
-                            className="px-4 py-2 rounded-full text-xs font-semibold text-gray-300 hover:text-white transition-all border border-gray-700 hover:border-red-600"
-                            style={{ background: "rgba(255,255,255,0.03)" }}>
-                            {chip.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {chatMessages.map((m, i) => (
-                        <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                          {m.role === "assistant" && (
-                            <div className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-white text-xs mr-2 flex-shrink-0 mt-1"
-                              style={{ background: "linear-gradient(135deg, #C8102E, #9b0c23)" }}>M</div>
-                          )}
-                          <div className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${m.role === "user"
-                            ? "text-white rounded-br-sm"
-                            : "text-gray-200 rounded-bl-sm border"}`}
-                            style={m.role === "user"
-                              ? { background: "linear-gradient(135deg, #C8102E, #9b0c23)" }
-                              : { background: "#161616", borderColor: "#2a2a2a", borderLeft: "2px solid #C8102E" }}>
-                            {m.content}
-                          </div>
-                        </div>
-                      ))}
-                      {chatLoading && (
-                        <div className="flex justify-start items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-white text-xs"
-                            style={{ background: "linear-gradient(135deg, #C8102E, #9b0c23)" }}>M</div>
-                          <div className="px-4 py-3 rounded-2xl rounded-bl-sm border text-xs text-gray-500 italic animate-pulse"
-                            style={{ background: "#161616", borderColor: "#2a2a2a" }}>
-                            MockMate is thinking...
-                          </div>
-                        </div>
-                      )}
-                      <div ref={chatBottomRef} />
-                    </>
-                  )}
-                </div>
-
-                {/* File tray */}
-                {attachedFiles.length > 0 && (
-                  <div className="px-4 pb-2 flex gap-2 flex-wrap" style={{ borderTop: "1px solid #1f1f1f", paddingTop: "8px" }}>
-                    {attachedFiles.map((f, i) => (
-                      <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs"
-                        style={{ background: "#1a1a1a", borderColor: "#333" }}>
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-gray-800">
-                          <FileIcon name={f.name} />
-                        </div>
-                        <span className="text-gray-300 max-w-24 truncate font-medium">{f.name}</span>
-                        <button onClick={() => removeAttachedFile(i)} className="text-gray-600 hover:text-red-400 transition-colors font-bold ml-1">✕</button>
-                      </div>
-                    ))}
-                  </div>
+                  ))
                 )}
-
-                {/* Input */}
-                <div className="p-4" style={{ borderTop: "1px solid #1f1f1f" }}>
-                  <div className="flex gap-2 items-end rounded-2xl border px-3 py-2"
-                    style={{ background: "#161616", borderColor: "#2a2a2a" }}>
-                    <input type="file" ref={chatFileRef} className="hidden" accept=".pdf,.docx,.txt" multiple onChange={handleChatFileUpload} />
-                    <button onClick={() => chatFileRef.current?.click()}
-                      className="p-2 rounded-xl transition-all hover:bg-red-900/30 flex-shrink-0"
-                      title="Attach files (up to 3)">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={attachedFiles.length > 0 ? "#C8102E" : "#555"} strokeWidth="2">
-                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                      </svg>
-                    </button>
-                    <textarea value={chatInput} onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(chatInput); } }}
-                      placeholder="Ask anything, or attach your resume first..."
-                      rows={2}
-                      className="flex-1 bg-transparent text-sm text-gray-200 placeholder:text-gray-600 resize-none focus:outline-none" />
-                    <button onClick={() => sendMessage(chatInput)} disabled={chatLoading || (!chatInput.trim() && attachedFiles.length === 0)}
-                      className="p-2.5 rounded-xl disabled:opacity-30 transition-all hover:opacity-80 flex-shrink-0"
-                      style={{ background: "linear-gradient(135deg, #C8102E, #9b0c23)" }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                        <line x1="22" y1="2" x2="11" y2="13" />
-                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                      </svg>
-                    </button>
-                  </div>
-                  <p className="text-center text-xs text-gray-700 mt-2 font-mono">attach up to 3 files · enter to send · shift+enter for newline</p>
-                </div>
               </div>
             </div>
-          )}
-        </div>
+
+            {/* Chat panel */}
+            <div style={{ flex: 1, border: "1px solid var(--color-gray-200)", borderRadius: "var(--radius-lg)", overflow: "hidden", display: "flex", flexDirection: "column", background: "#fff", minHeight: 600 }}>
+              {/* Header */}
+              <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--color-gray-200)", display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--color-red)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "var(--font-display)", fontSize: 16 }}>M</div>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: "var(--color-black)" }}>NUMockBuddy Assistant</p>
+                  <p style={{ fontSize: 11, color: "var(--color-gray-400)", display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#16a34a", display: "inline-block", animation: "pulse-dot 1.5s ease-in-out infinite" }} />
+                    online · NEU career intelligence
+                  </p>
+                </div>
+              </div>
+
+              {/* Messages */}
+              <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+                {showWelcome ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 24 }}>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ width: 56, height: 56, borderRadius: 16, background: "var(--color-red)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "var(--font-display)", fontSize: 24, margin: "0 auto 16px" }}>M</div>
+                      <h2 style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 400, color: "var(--color-black)", marginBottom: 8 }}>
+                        How can I help <span style={{ color: "var(--color-red)", fontStyle: "italic" }}>today?</span>
+                      </h2>
+                      <p style={{ fontSize: 14, color: "var(--color-gray-400)", maxWidth: 360 }}>Upload your resume or cover letter and ask me anything about your job search.</p>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", maxWidth: 480 }}>
+                      {QUICK_CHIPS.map(chip => (
+                        <button key={chip.label} onClick={() => sendMessage(chip.prompt)}
+                          style={{ ...btnOutline, padding: "8px 16px", fontSize: 12 }}>
+                          {chip.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {chatMessages.map((m, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", gap: 10 }}>
+                        {m.role === "assistant" && (
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--color-red)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontFamily: "var(--font-display)", flexShrink: 0, marginTop: 2 }}>M</div>
+                        )}
+                        <div style={{
+                          maxWidth: "75%", padding: "12px 16px", borderRadius: 16, fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap",
+                          ...(m.role === "user"
+                            ? { background: "var(--color-red)", color: "#fff", borderBottomRightRadius: 4 }
+                            : { background: "var(--color-gray-100)", color: "var(--color-black)", borderBottomLeftRadius: 4, border: "1px solid var(--color-gray-200)", borderLeft: "3px solid var(--color-red)" })
+                        }}>
+                          {m.content}
+                        </div>
+                      </div>
+                    ))}
+                    {chatLoading && (
+                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--color-red)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontFamily: "var(--font-display)" }}>M</div>
+                        <div style={{ padding: "10px 16px", background: "var(--color-gray-100)", borderRadius: 16, borderBottomLeftRadius: 4, border: "1px solid var(--color-gray-200)" }}>
+                          <p style={{ fontSize: 13, color: "var(--color-gray-400)", fontStyle: "italic", animation: "pulse-dot 1.5s ease-in-out infinite" }}>NUMockBuddy is thinking...</p>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatBottomRef} />
+                  </div>
+                )}
+              </div>
+
+              {/* File tray */}
+              {attachedFiles.length > 0 && (
+                <div style={{ padding: "8px 16px", borderTop: "1px solid var(--color-gray-200)", display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {attachedFiles.map((f, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 10px", border: "1px solid var(--color-gray-200)", borderRadius: "var(--radius-full)", background: "var(--color-gray-100)", fontSize: 12 }}>
+                      <FileIcon name={f.name} />
+                      <span style={{ color: "var(--color-gray-600)", maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                      <button onClick={() => setAttachedFiles(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-gray-400)", fontSize: 13, lineHeight: 1, padding: 0 }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Input */}
+              <div style={{ padding: "12px 16px", borderTop: "1px solid var(--color-gray-200)" }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "8px 12px", border: "1px solid var(--color-gray-200)", borderRadius: "var(--radius-lg)", background: "#fff", transition: "border-color 0.15s" }}>
+                  <input type="file" ref={chatFileRef} style={{ display: "none" }} accept=".pdf,.docx,.txt" multiple onChange={handleChatFileUpload} />
+                  <button onClick={() => chatFileRef.current?.click()}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: attachedFiles.length > 0 ? "var(--color-red)" : "var(--color-gray-400)", padding: "4px", flexShrink: 0, transition: "color 0.15s" }}
+                    title="Attach files (up to 3)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                    </svg>
+                  </button>
+                  <textarea value={chatInput} onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(chatInput); } }}
+                    placeholder="Ask anything, or attach your resume first..."
+                    rows={2}
+                    style={{ flex: 1, border: "none", outline: "none", resize: "none", fontSize: 14, fontFamily: "var(--font-body)", color: "var(--color-black)", lineHeight: 1.5, background: "transparent" }} />
+                  <button onClick={() => sendMessage(chatInput)} disabled={chatLoading || (!chatInput.trim() && attachedFiles.length === 0)}
+                    style={{ ...btnPrimary, padding: "8px 14px", fontSize: 13, flexShrink: 0, opacity: chatLoading || (!chatInput.trim() && attachedFiles.length === 0) ? 0.4 : 1 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="22" y1="2" x2="11" y2="13" />
+                      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg>
+                  </button>
+                </div>
+                <p style={{ textAlign: "center", fontSize: 11, color: "var(--color-gray-400)", marginTop: 8 }}>attach up to 3 files · enter to send · shift+enter for newline</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
