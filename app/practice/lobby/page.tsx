@@ -31,11 +31,6 @@ export default function InterviewLobbyPage() {
     setJobType(jt)
   }, [searchParams])
 
-  // Debug video element
-  useEffect(() => {
-    console.log('Video ref:', videoRef.current)
-  }, [])
-
   // Stop camera on unmount (e.g. navigating to session without clicking Stop Camera)
   useEffect(() => {
     return () => {

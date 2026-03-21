@@ -69,32 +69,48 @@ export default function InterviewSessionPage() {
 
   // Initialize camera + stop on unmount (covers all client-side navigation)
   useEffect(() => {
+    // `cancelled` prevents orphaned streams in React Strict Mode.
+    // Strict Mode runs every effect twice (mount → cleanup → remount).
+    // The cleanup fires before the first getUserMedia promise resolves,
+    // so without this flag both promises would resolve and create two streams —
+    // only the second lands in streamRef, leaving the first orphaned and keeping
+    // the camera light on even after "End Interview" stops the second stream.
+    let cancelled = false
+
     const initCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+        if (cancelled) {
+          stream.getTracks().forEach(track => track.stop())
+          return
+        }
         streamRef.current = stream
         if (videoRef.current) {
           videoRef.current.srcObject = stream
           setVideoActive(true)
         }
       } catch (err) {
-        console.error('Camera access denied:', err)
-        setVideoActive(false)
+        if (!cancelled) {
+          console.error('Camera access denied:', err)
+          setVideoActive(false)
+        }
       }
     }
 
     initCamera()
 
     return () => {
+      cancelled = true
+      if (videoRef.current) {
+        videoRef.current.pause()
+        videoRef.current.srcObject = null
+      }
       const tracks = streamRef.current?.getTracks() ?? []
       tracks.forEach(track => {
         track.enabled = false
         track.stop()
       })
       streamRef.current = null
-      if (videoRef.current) {
-        videoRef.current.srcObject = null
-      }
     }
   }, [])
 
