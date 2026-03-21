@@ -1,15 +1,17 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 
-const PROGRAMS = ['MSCS', 'MSIS', 'Co-op', 'Internship', 'Full-time']
-const COMPANIES = ['Google', 'Amazon', 'Meta', 'Microsoft', 'Apple', 'Fidelity', 'Salesforce', 'Adobe', 'Other']
+const PROGRAMS = ['Internship / Co-op', 'Full-time']
+const COMPANIES = ['General (No specific company)', 'Google', 'Amazon', 'Meta', 'Microsoft', 'Apple', 'Fidelity', 'Salesforce', 'Adobe', 'Other']
 const ROLE_TYPES = ['SWE', 'DS', 'TPM', 'Audit']
 const INTERVIEW_TYPES = ['Technical', 'Behavioral', 'System Design', 'HR']
 
 export default function PracticePage() {
+  const router = useRouter()
   const [selectedProgram, setSelectedProgram] = useState('')
   const [selectedCompany, setSelectedCompany] = useState('')
   const [selectedRole, setSelectedRole] = useState('')
@@ -76,7 +78,7 @@ export default function PracticePage() {
 
           {/* Program selector */}
           <div style={{ marginBottom: 32 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-black)', marginBottom: 16 }}>Program</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-black)', marginBottom: 16 }}>Job Type</h3>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {PROGRAMS.map(program => (
                 <button
@@ -187,6 +189,15 @@ export default function PracticePage() {
               variant="primary"
               size="lg"
               disabled={!selectedProgram || !selectedCompany || !selectedRole || !selectedInterview}
+              onClick={() => {
+                const params = new URLSearchParams({
+                  company: selectedCompany,
+                  role: selectedRole,
+                  interviewType: selectedInterview,
+                  jobType: selectedProgram,
+                })
+                router.push(`/practice/lobby?${params.toString()}`)
+              }}
             >
               Start Interview
             </Button>
