@@ -16,6 +16,7 @@ export default function InterviewLobbyPage() {
   const [cameraPermission, setCameraPermission] = useState<'pending' | 'granted' | 'denied'>('pending')
 
   const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream>(null)
 
   // Load params from URL
   useEffect(() => {
@@ -30,22 +31,28 @@ export default function InterviewLobbyPage() {
     setJobType(jt)
   }, [searchParams])
 
-  // Debug video element
+  // Stop camera on unmount (e.g. navigating to session without clicking Stop Camera)
   useEffect(() => {
-    console.log('Video ref:', videoRef.current)
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.pause()
+        videoRef.current.srcObject = null
+      }
+      const tracks = streamRef.current?.getTracks() ?? []
+      tracks.forEach(track => {
+        track.enabled = false
+        track.stop()
+      })
+      streamRef.current = null
+    }
   }, [])
 
   const startCamera = async () => {
-    console.log('Start Camera button clicked')
     try {
-      console.log('Requesting camera permission...')
       const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-      console.log('Camera permission granted, stream:', stream)
-
+      streamRef.current = stream
       if (videoRef.current) {
-        console.log('Setting video srcObject')
         videoRef.current.srcObject = stream
-        // Ensure video plays
         try {
           await videoRef.current.play()
         } catch (playErr) {
@@ -53,9 +60,6 @@ export default function InterviewLobbyPage() {
         }
         setCameraActive(true)
         setCameraPermission('granted')
-        console.log('Camera activated successfully')
-      } else {
-        console.error('Video element not found')
       }
     } catch (err) {
       console.error('Camera access denied:', err)
@@ -65,15 +69,33 @@ export default function InterviewLobbyPage() {
   }
 
   const stopCamera = () => {
-    if (videoRef.current?.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks()
-      tracks.forEach(track => track.stop())
+    if (videoRef.current) {
+      videoRef.current.pause()
       videoRef.current.srcObject = null
     }
+    const tracks = streamRef.current?.getTracks() ?? []
+    tracks.forEach(track => {
+      track.enabled = false
+      track.stop()
+    })
+    streamRef.current = null
     setCameraActive(false)
   }
 
   const handleBeginInterview = () => {
+    // Explicitly stop lobby camera before navigating — useEffect cleanup is
+    // unreliable because Next.js router cache may keep this component alive.
+    if (videoRef.current) {
+      videoRef.current.pause()
+      videoRef.current.srcObject = null
+    }
+    const tracks = streamRef.current?.getTracks() ?? []
+    tracks.forEach(track => {
+      track.enabled = false
+      track.stop()
+    })
+    streamRef.current = null
+
     const params = new URLSearchParams({
       company,
       role,
