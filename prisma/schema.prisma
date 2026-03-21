@@ -31,6 +31,7 @@ model ResumeScan {
   issuesFound    Json
   resumeSnippet  String
   improvements   Json?
+  fileName       String?
   createdAt      DateTime @default(now())
 }
 
