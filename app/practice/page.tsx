@@ -17,6 +17,8 @@ export default function PracticePage() {
   const [selectedRole, setSelectedRole] = useState('')
   const [selectedInterview, setSelectedInterview] = useState('')
 
+  const completedSteps = [selectedProgram, selectedCompany, selectedRole, selectedInterview].filter(Boolean).length
+
   return (
     <section style={{
       position: 'relative',
@@ -59,7 +61,7 @@ export default function PracticePage() {
           <div style={{ marginBottom: 48 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-black)' }}>Setup Your Mock Interview</h2>
-              <Badge variant="red">Step 1 of 4</Badge>
+              <Badge variant="red">Step {completedSteps} of 4</Badge>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               {[1, 2, 3, 4].map(step => (
@@ -69,7 +71,7 @@ export default function PracticePage() {
                     flex: 1,
                     height: 4,
                     borderRadius: 2,
-                    background: step === 1 ? 'var(--color-red)' : 'var(--color-gray-200)',
+                    background: step <= completedSteps ? 'var(--color-red)' : 'var(--color-gray-200)',
                   }}
                 />
               ))}
@@ -104,7 +106,7 @@ export default function PracticePage() {
 
           {/* Target company */}
           <div style={{ marginBottom: 32 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-black)', marginBottom: 16 }}>Target Company</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-black)', marginBottom: 16 }}>Company</h3>
             <select
               value={selectedCompany}
               onChange={(e) => setSelectedCompany(e.target.value)}

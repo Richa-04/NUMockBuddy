@@ -51,6 +51,7 @@ export default function InterviewSessionPage() {
   const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([])
   
   const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Load params from URL
@@ -66,11 +67,12 @@ export default function InterviewSessionPage() {
     setJobType(jt)
   }, [searchParams])
 
-  // Initialize camera
+  // Initialize camera + stop on unmount (covers all client-side navigation)
   useEffect(() => {
     const initCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+        streamRef.current = stream
         if (videoRef.current) {
           videoRef.current.srcObject = stream
           setVideoActive(true)
@@ -84,11 +86,29 @@ export default function InterviewSessionPage() {
     initCamera()
 
     return () => {
-      if (videoRef.current?.srcObject) {
-        const tracks = (videoRef.current.srcObject as MediaStream).getTracks()
-        tracks.forEach(track => track.stop())
+      const tracks = streamRef.current?.getTracks() ?? []
+      tracks.forEach(track => {
+        track.enabled = false
+        track.stop()
+      })
+      streamRef.current = null
+      if (videoRef.current) {
+        videoRef.current.srcObject = null
       }
     }
+  }, [])
+
+  // Stop camera on tab close / browser refresh (beforeunload)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const tracks = streamRef.current?.getTracks() ?? []
+      tracks.forEach(track => {
+        track.enabled = false
+        track.stop()
+      })
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
 
   // Timer
@@ -105,30 +125,33 @@ export default function InterviewSessionPage() {
   const questions = SAMPLE_QUESTIONS[interviewType as keyof typeof SAMPLE_QUESTIONS] || SAMPLE_QUESTIONS.Technical
   const currentQuestion = questions[currentQuestionIndex]
   const totalQuestions = questions.length
+  const allAnswered = submittedAnswers.length === totalQuestions
 
   const handleSubmitAnswer = () => {
+    if (allAnswered) return
     const newSubmitted = [...submittedAnswers, answer]
     setSubmittedAnswers(newSubmitted)
     setAnswer('')
-    
+
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1)
     }
   }
 
-  const handleNextQuestion = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1)
-      setAnswer('')
+  const stopCameraAndNavigate = (path: string) => {
+    // Release video element first so browser relinquishes the camera handle
+    if (videoRef.current) {
+      videoRef.current.pause()
+      videoRef.current.srcObject = null
     }
-  }
-
-  const handleEndInterview = () => {
-    if (videoRef.current?.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks()
-      tracks.forEach(track => track.stop())
-    }
-    router.push('/practice/results')
+    // Then stop every track so the OS-level camera indicator turns off
+    const tracks = streamRef.current?.getTracks() ?? []
+    tracks.forEach(track => {
+      track.enabled = false
+      track.stop()
+    })
+    streamRef.current = null
+    router.push(path)
   }
 
   const formatTime = (seconds: number) => {
@@ -317,6 +340,7 @@ export default function InterviewSessionPage() {
               ref={videoRef}
               autoPlay
               playsInline
+              muted
               style={{
                 width: '100%',
                 height: 220,
@@ -352,11 +376,7 @@ export default function InterviewSessionPage() {
         </div>
 
         {/* Bottom buttons */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 12,
-        }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           <button
             onClick={() => {
               setAnswer('')
@@ -384,19 +404,20 @@ export default function InterviewSessionPage() {
             variant="primary"
             size="lg"
             onClick={handleSubmitAnswer}
+            disabled={allAnswered}
             style={{ width: '100%' }}
           >
             Submit Answer
           </Button>
 
           <button
-            onClick={handleEndInterview}
+            onClick={() => stopCameraAndNavigate('/practice/results')}
             style={{
               padding: '12px 20px',
               borderRadius: 'var(--radius-full)',
-              border: '1.5px solid var(--color-gray-200)',
-              background: '#fff',
-              color: 'var(--color-black)',
+              border: `1.5px solid ${allAnswered ? 'var(--color-red)' : 'var(--color-gray-200)'}`,
+              background: allAnswered ? 'var(--color-red)' : '#fff',
+              color: allAnswered ? '#fff' : 'var(--color-black)',
               fontSize: 14,
               fontWeight: 600,
               cursor: 'pointer',
@@ -406,6 +427,23 @@ export default function InterviewSessionPage() {
             End Interview
           </button>
         </div>
+
+        {/* All-answered prompt */}
+        {allAnswered && (
+          <div style={{
+            marginTop: 16,
+            padding: '12px 20px',
+            borderRadius: 'var(--radius-md)',
+            background: '#fff1f2',
+            border: '1px solid #fecdd3',
+            textAlign: 'center',
+            fontSize: 14,
+            fontWeight: 500,
+            color: 'var(--color-red)',
+          }}>
+            All questions answered! Click <strong>End Interview</strong> to see your results.
+          </div>
+        )}
 
         {/* Progress indicator */}
         <div style={{
