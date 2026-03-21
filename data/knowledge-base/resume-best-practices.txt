@@ -1,0 +1,29 @@
+Resume Best Practices for Software Engineering and Technical Roles
+
+RESUME FORMAT
+One page for students and early career (under 5 years). Single-column layout for ATS compatibility. Fonts: Calibri, Arial, or Garamond (10-12pt). Consistent date format: MM/YYYY throughout. Margins: 0.5in to 1in.
+
+BULLET POINT FORMULA
+Action Verb + What You Did + Measurable Result.
+Weak: "Worked on backend APIs"
+Strong: "Built REST APIs in Go that reduced checkout latency by 34% under peak load"
+Weak: "Helped with data pipeline"
+Strong: "Designed a Kafka-based pipeline processing 2M events/day with 99.9% uptime"
+
+QUANTIFICATION RULES
+Add metrics wherever possible: scale (users, requests/sec), speed (latency reduction), business (revenue, conversion), size (team size, data volume).
+
+SKILLS SECTION
+Only list skills you can speak to in an interview. Group by: Languages, Frameworks, Databases, Cloud/DevOps, Tools.
+
+COMMON ATS KEYWORDS
+REST API, microservices, CI/CD, Agile, Git, SQL, unit testing, code review, distributed systems, scalability, cloud, containerization.
+
+COMMON MISTAKES
+Using first person. Generic job descriptions. Missing GitHub or LinkedIn links. Typos. Tables, text boxes, or images that ATS cannot read. Listing soft skills without evidence.
+
+COVER LETTER TIPS
+Open with why this specific company. Connect your 2-3 strongest experiences to role requirements. Close with a specific ask. Keep to 3-4 short paragraphs. Address hiring manager by name if possible.
+
+LINKEDIN SUMMARY TIPS
+Open with current role/study and what you are looking for. Mention 2-3 specific technologies. Include a call to action: "Open to SWE co-op opportunities for Fall 2025." Add all relevant projects with tight, result-focused descriptions.

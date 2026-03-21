@@ -11,3 +11,44 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum ScanType {
+  JD_MATCH
+  ROLE_RATE
+  ATS
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+model ResumeScan {
+  id             String   @id @default(cuid())
+  userId         String
+  score          Int
+  scanType       ScanType
+  issuesFound    Json
+  resumeSnippet  String
+  improvements   Json?
+  fileName       String?
+  createdAt      DateTime @default(now())
+}
+
+model ChatSession {
+  id        String        @id @default(cuid())
+  userId    String
+  title     String
+  createdAt DateTime      @default(now())
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id])
+  role      MessageRole
+  content   String
+  createdAt DateTime    @default(now())
+}
+
