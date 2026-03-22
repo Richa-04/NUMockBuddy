@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+
 import { useState } from 'react'
 
 const NAV_LINKS = [
@@ -31,32 +32,24 @@ export default function Navbar() {
         alignItems: 'center',
         justifyContent: 'space-between',
       }}>
+
         {/* Logo */}
         <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 34,
-            height: 34,
-            background: 'var(--color-red)',
-            borderRadius: 8,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: 15,
+          <img
+            src="/nuLogo.jpg"
+            alt="Northeastern University"
+            style={{ height: 36, width: 'auto', objectFit: 'contain' }}
+          />
+          <div style={{ width: 1, height: 24, background: 'var(--color-gray-200)' }} />
+          <span style={{
             fontFamily: 'var(--font-display)',
-            letterSpacing: '-0.5px',
+            fontSize: 17,
+            fontWeight: 700,
+            color: 'var(--color-black)',
+            letterSpacing: '-0.4px',
           }}>
-            M
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-black)', lineHeight: 1.1, letterSpacing: '-0.3px' }}>
-              MockMate
-            </div>
-            <div style={{ fontSize: 10, color: 'var(--color-gray-400)', lineHeight: 1, letterSpacing: '0.2px' }}>
-              Northeastern University
-            </div>
-          </div>
+            NUMockBuddy
+          </span>
         </Link>
 
         {/* Desktop Nav */}
