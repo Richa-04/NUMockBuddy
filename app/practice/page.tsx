@@ -7,7 +7,7 @@ import Badge from '@/components/ui/Badge'
 
 const PROGRAMS = ['Internship / Co-op', 'Full-time']
 const COMPANIES = ['General (No specific company)', 'Google', 'Amazon', 'Meta', 'Microsoft', 'Apple', 'Fidelity', 'Salesforce', 'Adobe', 'Other']
-const ROLE_TYPES = ['SWE', 'DS', 'TPM', 'Audit']
+const ROLE_TYPES = ['SWE', 'Data Science', 'TPM', 'Audit']
 const INTERVIEW_TYPES = ['Technical', 'Behavioral', 'System Design', 'HR']
 
 export default function PracticePage() {
