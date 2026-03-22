@@ -11,3 +11,78 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum ScanType {
+  JD_MATCH
+  ROLE_RATE
+  ATS
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+model ResumeScan {
+  id             String   @id @default(cuid())
+  userId         String
+  score          Int
+  scanType       ScanType
+  issuesFound    Json
+  resumeSnippet  String
+  improvements   Json?
+  fileName       String?
+  createdAt      DateTime @default(now())
+}
+
+model ChatSession {
+  id        String        @id @default(cuid())
+  userId    String
+  title     String
+  createdAt DateTime      @default(now())
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id])
+  role      MessageRole
+  content   String
+  createdAt DateTime    @default(now())
+}
+
+
+model Volunteer {
+  id           String    @id @default(cuid())
+  name         String
+  degree       String?
+  company      String?
+  role         String?
+  bio          String?
+  skills       String?   
+  availability String    @default("available") // available | busy | unavailable
+  createdAt    DateTime  @default(now())
+  sessions     Session[]
+}
+
+model Session {
+  id          String    @id @default(cuid())
+  volunteerId String
+  volunteer   Volunteer @relation(fields: [volunteerId], references: [id])
+  requester   String    
+  status      String    @default("pending") // pending | confirmed | cancelled
+  notes       String?
+  createdAt   DateTime  @default(now())
+}
+
+model User {
+  id           String   @id @default(cuid())
+  nuid         String   @unique
+  fullName     String
+  email        String   @unique
+  program      String?
+  gradYear     String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
