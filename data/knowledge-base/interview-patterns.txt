@@ -1,0 +1,25 @@
+Common Company Interview Patterns for Northeastern Co-op Students
+
+AMAZON INTERVIEW PROCESS
+Amazon interviews heavily on Leadership Principles. Every behavioral question maps to one or more LPs. Common LPs: Customer Obsession, Bias for Action, Dive Deep, Deliver Results, Invent and Simplify. Technical rounds: 2 coding rounds (LeetCode medium), 1 system design, 1 behavioral bar raiser. Prepare 6-8 strong STAR stories covering multiple LPs.
+
+GOOGLE INTERVIEW PROCESS
+Focuses on coding and system design. LeetCode medium to hard. Emphasis on clean code and edge case handling. Practice explaining thought process out loud. Google values communication as much as correctness.
+
+MICROSOFT INTERVIEW PROCESS
+2-3 coding rounds, 1 system design, 1 behavioral. Behavioral questions focus on collaboration and growth mindset. Interviewers want to see how you handle ambiguity — ask clarifying questions before coding.
+
+WAYFAIR CO-OP INTERVIEW
+Top Northeastern co-op employer. Process: 1 technical phone screen, 1 hiring manager call, sometimes a take-home. Wayfair cares about e-commerce use cases — frame experience in terms of impact on users and revenue.
+
+FIDELITY CO-OP INTERVIEW
+1-2 technical rounds (Java or Python), 1 behavioral. They ask about financial systems concepts — transaction integrity, latency, data pipelines. Mention experience with reliable, fault-tolerant systems.
+
+HUBSPOT CO-OP INTERVIEW
+Coding challenge, behavioral, and product thinking round. HubSpot values empathy and customer focus — tie technical decisions back to user outcomes.
+
+RAPID7 CO-OP INTERVIEW
+Cybersecurity company, frequent Northeastern co-op employer. Interview on security fundamentals, Python/scripting, and behavioral questions about attention to detail.
+
+GENERAL CODING INTERVIEW TIPS
+Always clarify constraints before coding. Think out loud. Start brute force then optimize. Test with edge cases. Common topics: arrays, hashmaps, trees, graphs, dynamic programming, sliding window.
