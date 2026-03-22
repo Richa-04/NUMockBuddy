@@ -28,9 +28,8 @@ export default function Footer() {
                 color: '#fff',
                 fontWeight: 700,
                 fontSize: 14,
-              }}>N</div>
-              <span style={{ fontWeight: 700, fontSize: 15 }}>
-NUMockBuddy</span>
+              }}>M</div>
+              <span style={{ fontWeight: 700, fontSize: 15 }}>MockMate</span>
             </div>
             <p style={{ fontSize: 13, color: 'var(--color-gray-400)', lineHeight: 1.6, maxWidth: 240 }}>
               AI-powered interview prep built by NU students, for NU students.
@@ -76,7 +75,7 @@ NUMockBuddy</span>
           gap: 12,
         }}>
           <p style={{ fontSize: 13, color: 'var(--color-gray-400)' }}>
-            © 2026 NUMockBuddy · Northeastern University Seattle
+            © 2025 MockMate · Northeastern University Seattle
           </p>
           <div style={{ display: 'flex', gap: 6 }}>
             {['#C8102E', '#111'].map((c, i) => (
