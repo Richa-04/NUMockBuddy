@@ -26,10 +26,63 @@ const DEFAULT_FEEDBACK = {
 }
 
 
-function parseJSON<T>(text: string): T {
-  const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-  return JSON.parse(cleaned)
+function extractText(msg: Anthropic.Message): string {
+  return (msg.content[0] as { type: 'text'; text: string }).text
 }
+
+// Escape literal newlines/tabs inside JSON string values using a state machine.
+// Regex alternatives tend to corrupt already-valid escape sequences.
+function fixLiteralNewlines(text: string): string {
+  let out = ''
+  let inString = false
+  let escaped = false
+  for (const ch of text) {
+    if (escaped) {
+      out += ch; escaped = false
+    } else if (ch === '\\') {
+      out += ch; escaped = true
+    } else if (ch === '"') {
+      out += ch; inString = !inString
+    } else if (inString && ch === '\n') {
+      out += '\\n'
+    } else if (inString && ch === '\r') {
+      out += '\\r'
+    } else if (inString && ch === '\t') {
+      out += '\\t'
+    } else {
+      out += ch
+    }
+  }
+  return out
+}
+
+function parseJSON<T>(text: string): T {
+  // Only strip code fences at the very start/end of the response.
+  // A global replace would corrupt code inside JSON string values.
+  const cleaned = text
+    .replace(/^```(?:json)?\r?\n?/, '')
+    .replace(/\r?\n?```$/, '')
+    .trim()
+
+  // Attempt 1: direct parse
+  try { return JSON.parse(cleaned) } catch { /* fall through */ }
+
+  // Attempt 2: model may have added preamble text — pull out the first JSON array/object
+  const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/)
+  if (jsonMatch) {
+    try { return JSON.parse(jsonMatch[1]) } catch { /* fall through */ }
+  }
+
+  // Attempt 3: fix literal newlines/tabs inside string values (code answers)
+  const src = jsonMatch?.[1] ?? cleaned
+  const fixed = fixLiteralNewlines(src)
+  try { return JSON.parse(fixed) } catch (e) {
+    console.error('parseJSON all attempts failed.\nRaw text:', text, '\nError:', e)
+    throw e
+  }
+}
+
+// ─── Call 1: scores only (kept tiny so it never truncates) ────────────────────
 
 interface ScoresAndFeedback {
   experts: Array<{ name: string; score: number; feedback: string }>
@@ -38,109 +91,150 @@ interface ScoresAndFeedback {
   summary: string
 }
 
-async function callScoresAndFeedback(
+async function callScores(
   questions: string[],
   answers: string[],
+  totalFillerCount: number,
 ): Promise<ScoresAndFeedback> {
-  const prompt = `You are an interviewer. Score this interview response.
-Return ONLY this JSON with no other text:
-{"experts":[{"name":"Communication","score":7,"feedback":"Clear explanation"},{"name":"Technical","score":6,"feedback":"Good approach"},{"name":"Problem-Solving","score":7,"feedback":"Structured thinking"},{"name":"Behavioral","score":7,"feedback":"Good examples"},{"name":"Confidence","score":6,"feedback":"Steady delivery"},{"name":"Overall","score":7,"feedback":"Solid performance"}],"strengths":["strength1","strength2"],"improvements":["improvement1","improvement2"],"summary":"Brief summary here"}
+  const fillerNote = totalFillerCount > 0
+    ? `\nFiller words detected: ${totalFillerCount} — lower Communication and Confidence if high.`
+    : ''
 
-Questions: ${JSON.stringify(questions)}
-Answers: ${JSON.stringify(answers)}
+  const prompt =
+`Score this interview. Return ONLY this JSON, no other text:
+{"experts":[{"name":"Communication","score":7,"feedback":"Clear explanation"},{"name":"Technical","score":6,"feedback":"Good approach"},{"name":"Problem-Solving","score":7,"feedback":"Structured thinking"},{"name":"Behavioral","score":7,"feedback":"Good examples"},{"name":"Confidence","score":6,"feedback":"Steady delivery"},{"name":"Overall","score":7,"feedback":"Solid performance"}],"strengths":["strength1","strength2"],"improvements":["improvement1","improvement2"],"summary":"One sentence summary"}
 
-Replace the example values with real scores. Keep all text under 8 words.`
+Rules: scores 1-10, feedback ≤8 words, strengths/improvements ≤6 words each, summary ≤15 words.${fillerNote}
+
+Q: ${JSON.stringify(questions)}
+A: ${JSON.stringify(answers)}`
 
   const msg = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 1500,
+    max_tokens: 1000,
     messages: [{ role: 'user', content: prompt }],
   })
-  return parseJSON<ScoresAndFeedback>((msg.content[0] as { type: 'text'; text: string }).text)
+  return parseJSON<ScoresAndFeedback>(extractText(msg))
 }
 
-async function callModelAnswersOnly(
+// ─── Call 2: model answers only ───────────────────────────────────────────────
+
+type ModelAnswer = { question: string; language: string; answer: string }
+
+async function callModelAnswers(
   questions: string[],
   role: string,
   interviewType: string,
-): Promise<Array<{ question: string; language: string; answer: string }>> {
-  const msg = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 2000,
-    messages: [{
-      role: 'user',
-      content: `Respond with ONLY a valid JSON array. No markdown, no explanation, no code blocks.
+  selectedLanguage: string,
+): Promise<ModelAnswer[]> {
+  const isTechnical = interviewType === 'Technical'
+  const isBehavioral = interviewType === 'Behavioral' || interviewType === 'HR'
+  const qList = questions.map((q, i) => `${i + 1}. ${q}`).join('\n')
 
-Provide model answers for a ${role} ${interviewType} interview. Max 30 words per answer.
+  let instruction: string
+  let exampleAnswer: string
+  let lang: string
+
+  if (isTechnical) {
+    lang = selectedLanguage
+    instruction = `Write a concise ${selectedLanguage} code solution. Max 10 lines. CRITICAL: this is embedded in a JSON string — you MUST use the two-character escape \\n for every newline and spaces for indentation. Do NOT emit actual newline characters inside the JSON string.`
+    exampleAnswer = `def solve(n):\\n    if n == 0:\\n        return 0\\n    return n + solve(n - 1)`
+  } else if (isBehavioral) {
+    lang = 'text'
+    instruction = 'Write a STAR-format answer (Situation, Task, Action, Result). Plain text. Max 60 words. No code.'
+    exampleAnswer = '<STAR format, max 60 words>'
+  } else {
+    // System Design
+    lang = 'text'
+    instruction = 'Explain the architecture: components, data flow, trade-offs. Plain text. Max 60 words. No code.'
+    exampleAnswer = '<architecture explanation, max 60 words>'
+  }
+
+  const prompt =
+`${instruction}
+
+Return ONLY a JSON array, no markdown, no extra text:
+[{"question":"<exact question>","language":"${lang}","answer":"${exampleAnswer}"}]
 
 Questions:
-${questions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+${qList}`
 
-[{"question":"<exact question>","language":"<python|javascript|java|cpp|text>","answer":"<max 30 words>"}]`,
-    }],
+  const msg = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: isTechnical ? 3000 : 2000,
+    messages: [{ role: 'user', content: prompt }],
   })
-  return parseJSON((msg.content[0] as { type: 'text'; text: string }).text)
+  return parseJSON<ModelAnswer[]>(extractText(msg))
 }
 
+// ─── POST handler ─────────────────────────────────────────────────────────────
+
 export async function POST(request: Request) {
-  try {
-    const { questions, answers, role, interviewType } = await request.json()
+  const { questions, answers, role, interviewType, totalFillerCount = 0, selectedLanguage = 'python' } =
+    await request.json()
 
-    const hasAnswers = Array.isArray(answers) && answers.some((a: string) => a?.trim())
+  const hasAnswers = Array.isArray(answers) && answers.some((a: string) => a?.trim())
 
-    if (!hasAnswers) {
-      const modelAnswers = await callModelAnswersOnly(questions, role, interviewType)
-      return Response.json({
-        overallScore: 0,
-        verdict: 'Incomplete',
-        expertScores: DEFAULT_EXPERT_SCORES,
-        strengths:    DEFAULT_FEEDBACK.strengths,
-        improvements: DEFAULT_FEEDBACK.improvements,
-        summary:      DEFAULT_FEEDBACK.summary,
-        modelAnswers,
-      })
-    }
+  // Run both calls in parallel; parse each independently so one failure doesn't kill the other
+  const [scoresResult, modelAnswersResult] = await Promise.all([
+    hasAnswers
+      ? callScores(questions, answers, totalFillerCount).catch(err => {
+          console.error('callScores failed:', err)
+          return null
+        })
+      : Promise.resolve(null),
+    callModelAnswers(questions, role, interviewType, selectedLanguage).catch(err => {
+      console.error('callModelAnswers failed:', err)
+      return [] as ModelAnswer[]
+    }),
+  ])
 
-    // Two parallel calls: scores+feedback and model answers
-    const [result, modelAnswers] = await Promise.all([
-      callScoresAndFeedback(questions, answers),
-      callModelAnswersOnly(questions, role, interviewType),
-    ])
-
-    const expertScores = result.experts.map(e => {
-      const config = EXPERT_CONFIG.find(c => c.name === e.name)
-      return {
-        name:     e.name,
-        score:    e.score,
-        feedback: e.feedback,
-        accent:   config?.accent ?? '#666',
-        bg:       config?.bg ?? '#f9f9f9',
-      }
-    })
-
-    const overallScore = Math.round(
-      expertScores.reduce((sum, e) => sum + e.score, 0) / expertScores.length,
-    )
-
-    const verdict =
-      overallScore >= 9 ? 'Strong'     :
-      overallScore >= 7 ? 'Good'       :
-      overallScore >= 5 ? 'Needs Work' : 'Incomplete'
-
+  if (!hasAnswers) {
     return Response.json({
-      overallScore,
-      verdict,
-      expertScores,
-      strengths:    result.strengths,
-      improvements: result.improvements,
-      summary:      result.summary,
-      modelAnswers,
+      overallScore: 0,
+      verdict: 'Incomplete',
+      expertScores: DEFAULT_EXPERT_SCORES,
+      strengths:    DEFAULT_FEEDBACK.strengths,
+      improvements: DEFAULT_FEEDBACK.improvements,
+      summary:      DEFAULT_FEEDBACK.summary,
+      modelAnswers: modelAnswersResult,
     })
-  } catch (err) {
-    console.error('/api/practice/score error:', err)
+  }
+
+  if (!scoresResult) {
     return Response.json(
-      { error: err instanceof Error ? err.message : 'Failed to score interview' },
+      { error: 'Failed to score interview', modelAnswers: modelAnswersResult },
       { status: 500 },
     )
   }
+
+  const expertScores = scoresResult.experts.map(e => {
+    const config = EXPERT_CONFIG.find(c => c.name === e.name)
+    return {
+      name:     e.name,
+      score:    e.score,
+      feedback: e.feedback,
+      accent:   config?.accent ?? '#666',
+      bg:       config?.bg ?? '#f9f9f9',
+    }
+  })
+
+  const overallScore = Math.round(
+    expertScores.reduce((sum, e) => sum + e.score, 0) / expertScores.length,
+  )
+
+  const verdict =
+    overallScore >= 9 ? 'Strong'     :
+    overallScore >= 7 ? 'Good'       :
+    overallScore >= 5 ? 'Needs Work' : 'Incomplete'
+
+  return Response.json({
+    overallScore,
+    verdict,
+    expertScores,
+    strengths:    scoresResult.strengths,
+    improvements: scoresResult.improvements,
+    summary:      scoresResult.summary,
+    modelAnswers: modelAnswersResult,
+  })
 }

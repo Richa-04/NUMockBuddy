@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -90,12 +90,13 @@ function MiniBar({ score, accent }: { score: number; accent: string }) {
 
 export default function ResultsPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
 
-  const company       = searchParams.get('company')       || 'General'
-  const role          = searchParams.get('role')          || 'SWE'
-  const interviewType = searchParams.get('interviewType') || 'Technical'
-  const jobType       = searchParams.get('jobType')       || 'Internship / Co-op'
+  const [sessionData, setSessionData] = useState({
+    company: '',
+    role: '',
+    interviewType: '',
+    jobType: '',
+  })
 
   const [result, setResult] = useState<ScoreResult | null>(null)
   const [modelAnswers, setModelAnswers] = useState<ScoreResult['modelAnswers']>([])
@@ -104,6 +105,7 @@ export default function ResultsPage() {
   const [carouselIndex, setCarouselIndex] = useState(0)
   const [answeredCount, setAnsweredCount] = useState(0)
   const [skippedCount, setSkippedCount] = useState(0)
+  const [fillerBreakdown, setFillerBreakdown] = useState<Record<string, number>>({})
 
   useEffect(() => {
     const questions = JSON.parse(sessionStorage.getItem('interviewQuestions') || '[]')
@@ -112,10 +114,21 @@ export default function ResultsPage() {
     setAnsweredCount(Number(sessionStorage.getItem('answeredCount') ?? 0))
     setSkippedCount(Number(sessionStorage.getItem('skippedCount') ?? 0))
 
+    const c  = sessionStorage.getItem('interviewCompany')  || 'General'
+    const r  = sessionStorage.getItem('interviewRole')     || 'SWE'
+    const it = sessionStorage.getItem('interviewType')     || 'Technical'
+    const jt = sessionStorage.getItem('interviewJobType')  || 'Internship / Co-op'
+    setSessionData({ company: c, role: r, interviewType: it, jobType: jt })
+
+    const breakdown: Record<string, number> = JSON.parse(sessionStorage.getItem('fillerBreakdown') || '{}')
+    setFillerBreakdown(breakdown)
+    const totalFillerCount = Object.values(breakdown).reduce((s, c) => s + c, 0)
+    const selectedLanguage = sessionStorage.getItem('selectedLanguage') || 'python'
+
     fetch('/api/practice/score', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ questions, answers, company, role, interviewType, jobType }),
+      body: JSON.stringify({ questions, answers, company: c, role: r, interviewType: it, jobType: jt, totalFillerCount, selectedLanguage }),
     })
       .then(res => res.json())
       .then(data => {
@@ -257,7 +270,7 @@ export default function ResultsPage() {
 
             {/* Session meta pills */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
-              {[company, role, interviewType, jobType].map(tag => (
+              {[sessionData.company, sessionData.role, sessionData.interviewType, sessionData.jobType].filter(Boolean).map(tag => (
                 <span key={tag} style={{
                   padding: '4px 14px',
                   borderRadius: 'var(--radius-full)',
@@ -400,7 +413,84 @@ export default function ResultsPage() {
             </div>
           )}
 
-          {/* ── 4. Model Answers ── always shown once available */}
+          {/* ── 4. Speech Analysis ── always shown */}
+          {(() => {
+            const totalFillers = Object.values(fillerBreakdown).reduce((s, c) => s + c, 0)
+            const topFillers = Object.entries(fillerBreakdown)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 6)
+            return (
+              <div style={{
+                border: '1px solid var(--color-gray-200)',
+                borderRadius: 'var(--radius-lg)',
+                padding: 32, background: '#fff', marginBottom: 32,
+              }}>
+                <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-black)', marginBottom: 8 }}>
+                  Speech Analysis
+                </h2>
+                <p style={{ fontSize: 13, color: 'var(--color-gray-500)', marginBottom: 20 }}>
+                  Based on your spoken answers
+                </p>
+
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 12, marginBottom: topFillers.length > 0 ? 20 : 0,
+                  padding: '14px 20px',
+                  borderRadius: 'var(--radius-md)',
+                  background: totalFillers > 15 ? '#fff7ed' : totalFillers > 5 ? '#fffbeb' : '#f0fdf4',
+                  border: `1px solid ${totalFillers > 15 ? '#fed7aa' : totalFillers > 5 ? '#fde68a' : '#bbf7d0'}`,
+                }}>
+                  <div>
+                    <div style={{
+                      fontSize: 22, fontWeight: 700,
+                      color: totalFillers > 15 ? '#c2410c' : totalFillers > 5 ? '#b45309' : '#15803d',
+                    }}>
+                      {totalFillers} filler word{totalFillers !== 1 ? 's' : ''} detected
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--color-gray-500)', marginTop: 2 }}>
+                      {totalFillers > 15
+                        ? 'High — try slowing down and using pauses instead'
+                        : totalFillers > 5
+                        ? 'Moderate — a few fillers is normal, aim to reduce'
+                        : totalFillers > 0
+                        ? 'Low — great job speaking clearly!'
+                        : 'No filler words detected'}
+                    </div>
+                  </div>
+                </div>
+
+                {topFillers.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-gray-500)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+                      Most Used
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {topFillers.map(([word, count]) => (
+                        <span key={word} style={{
+                          padding: '5px 14px',
+                          borderRadius: 'var(--radius-full)',
+                          background: '#fee2e2',
+                          border: '1px solid #fca5a5',
+                          fontSize: 13, fontWeight: 600, color: '#b91c1c',
+                          display: 'flex', alignItems: 'center', gap: 6,
+                        }}>
+                          &ldquo;{word}&rdquo;
+                          <span style={{
+                            background: '#b91c1c', color: '#fff',
+                            borderRadius: 'var(--radius-full)',
+                            padding: '1px 7px', fontSize: 11, fontWeight: 700,
+                          }}>
+                            ×{count}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* ── 5. Model Answers ── always shown once available */}
           {modelAnswers.length > 0 && (
             <div style={{
               border: '1px solid var(--color-gray-200)',
@@ -458,31 +548,45 @@ export default function ResultsPage() {
                             </p>
                           </div>
 
-                          {/* Code block */}
-                          <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid #1e293b' }}>
-                            <div style={{
-                              background: '#1e293b', padding: '10px 16px',
-                              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            }}>
-                              <span style={{ fontSize: 12, color: '#94a3b8', fontFamily: 'var(--font-mono, monospace)' }}>
-                                {item.language}
-                              </span>
-                              <div style={{ display: 'flex', gap: 6 }}>
-                                {['#ef4444', '#facc15', '#4ade80'].map(c => (
-                                  <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />
-                                ))}
+                          {/* Code block for Technical, plain text for everything else */}
+                          {sessionData.interviewType === 'Technical' ? (
+                            <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid #1e293b' }}>
+                              <div style={{
+                                background: '#1e293b', padding: '10px 16px',
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                              }}>
+                                <span style={{ fontSize: 12, color: '#94a3b8', fontFamily: 'var(--font-mono, monospace)' }}>
+                                  {item.language}
+                                </span>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  {['#ef4444', '#facc15', '#4ade80'].map(c => (
+                                    <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />
+                                  ))}
+                                </div>
                               </div>
+                              <pre style={{
+                                margin: 0, padding: '20px',
+                                background: '#0f172a', color: '#e2e8f0',
+                                fontSize: 13, lineHeight: 1.7, overflowX: 'auto',
+                                fontFamily: 'var(--font-mono, "Fira Code", "Cascadia Code", monospace)',
+                                whiteSpace: 'pre-wrap',
+                              }}>
+                                {item.answer}
+                              </pre>
                             </div>
-                            <pre style={{
-                              margin: 0, padding: '20px',
-                              background: '#0f172a', color: '#e2e8f0',
-                              fontSize: 13, lineHeight: 1.7, overflowX: 'auto',
-                              fontFamily: 'var(--font-mono, "Fira Code", "Cascadia Code", monospace)',
-                              whiteSpace: 'pre-wrap',
+                          ) : (
+                            <div style={{
+                              padding: '16px 20px',
+                              borderRadius: 'var(--radius-md)',
+                              border: '1px solid var(--color-gray-200)',
+                              background: 'var(--color-gray-100, #f9fafb)',
+                              fontSize: 14,
+                              lineHeight: 1.7,
+                              color: 'var(--color-gray-700)',
                             }}>
                               {item.answer}
-                            </pre>
-                          </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* Right arrow */}
@@ -527,7 +631,7 @@ export default function ResultsPage() {
             </div>
           )}
 
-          {/* ── 5. Bottom Buttons ── */}
+          {/* ── 6. Bottom Buttons ── */}
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Button variant="outline" size="lg" href="/practice">
               Practice Again

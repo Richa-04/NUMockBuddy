@@ -7,6 +7,23 @@ import Button from '@/components/ui/Button'
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false })
 
+const FILLER_WORDS = [
+  'um', 'uh', 'like', 'you know', 'basically', 'literally',
+  'actually', 'so', 'right', 'yeah', 'okay', 'kind of', 'sort of',
+]
+
+function countFillerWords(text: string): Record<string, number> {
+  const lower = text.toLowerCase()
+  const counts: Record<string, number> = {}
+  for (const filler of FILLER_WORDS) {
+    const escaped = filler.replace(/ /g, '\\s+')
+    const regex = new RegExp(`\\b${escaped}\\b`, 'g')
+    const matches = lower.match(regex)
+    if (matches && matches.length > 0) counts[filler] = matches.length
+  }
+  return counts
+}
+
 // Extend window type for SpeechRecognition
 declare global {
   interface Window {
@@ -42,6 +59,7 @@ export default function InterviewSessionPage() {
   const [micEnabled, setMicEnabled] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [interimTranscript, setInterimTranscript] = useState('')
+  const [fillerBreakdown, setFillerBreakdown] = useState<Record<string, number>>({})
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream>(null)
@@ -247,12 +265,16 @@ export default function InterviewSessionPage() {
   const handleSubmitAnswer = () => {
     if (allAnswered) return
 
+    // Snapshot before any setters fire
+    const currentAnswer = answer
+    const currentTranscript = transcript
+
     // Combine answer fields based on interview type
-    let finalAnswer = answer
-    if (isTechnicalCode && transcript) {
-      finalAnswer = answer + (answer.trim() ? '\n\n[Spoken explanation]:\n' : '') + transcript
+    let finalAnswer = currentAnswer
+    if (isTechnicalCode && currentTranscript) {
+      finalAnswer = currentAnswer + (currentAnswer.trim() ? '\n\n[Spoken explanation]:\n' : '') + currentTranscript
     } else if (isSystemDesign) {
-      finalAnswer = `Written Design:\n${answer}\n\nVerbal Explanation:\n${transcript}`
+      finalAnswer = `Written Design:\n${currentAnswer}\n\nVerbal Explanation:\n${currentTranscript}`
     }
 
     const newSubmitted = [...submittedAnswers, finalAnswer]
@@ -261,6 +283,16 @@ export default function InterviewSessionPage() {
     setAnswer('')
     setTranscript('')
     setInterimTranscript('')
+    // For behavioral/HR the speech content lives in `answer`; for others use `transcript`
+    const spokenText = isSpeechOnly ? currentAnswer : currentTranscript
+    const fillers = countFillerWords(spokenText)
+    setFillerBreakdown(prev => {
+      const updated = { ...prev }
+      for (const [word, count] of Object.entries(fillers)) {
+        updated[word] = (updated[word] ?? 0) + count
+      }
+      return updated
+    })
     speechRef.current?.abort()
 
     const isLast = currentQuestionIndex === questions.length - 1
@@ -281,6 +313,12 @@ export default function InterviewSessionPage() {
     sessionStorage.setItem('interviewAnswers', JSON.stringify(submittedAnswers))
     sessionStorage.setItem('answeredCount', String(answeredIndices.length))
     sessionStorage.setItem('skippedCount', String(skippedIndices.length))
+    sessionStorage.setItem('fillerBreakdown', JSON.stringify(fillerBreakdown))
+    sessionStorage.setItem('selectedLanguage', language)
+    sessionStorage.setItem('interviewCompany', company)
+    sessionStorage.setItem('interviewRole', role)
+    sessionStorage.setItem('interviewType', interviewType)
+    sessionStorage.setItem('interviewJobType', jobType)
 
     // Stop speech recognition immediately
     shouldListenRef.current = false
