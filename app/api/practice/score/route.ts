@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { prisma } from '@/lib/prisma'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -201,8 +202,19 @@ ${qList}`
 // ─── POST handler ─────────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
-  const { questions, answers, role, interviewType, totalFillerCount = 0, selectedLanguage = 'python' } =
-    await request.json()
+  const {
+    questions,
+    answers,
+    role,
+    interviewType,
+    totalFillerCount = 0,
+    selectedLanguage = 'python',
+    company = '',
+    jobType = '',
+    answeredCount = 0,
+    skippedCount = 0,
+    totalRepeated = 0,
+  } = await request.json()
 
   const hasAnswers = Array.isArray(answers) && answers.some((a: string) => a?.trim())
 
@@ -259,6 +271,28 @@ export async function POST(request: Request) {
     overallScore >= 7 ? 'Very Good'  :
     overallScore >= 5 ? 'Good'       :
     overallScore >= 3 ? 'Needs Work' : 'Incomplete'
+
+  // Persist session to DB — non-blocking, never crashes the response
+  prisma.practiceSession.create({
+    data: {
+      userId:        null,
+      company,
+      role,
+      interviewType,
+      jobType,
+      overallScore,
+      verdict,
+      answeredCount,
+      skippedCount,
+      totalFillers:  totalFillerCount,
+      totalRepeated,
+      eyeContact:    null,
+      confidence:    null,
+      engagement:    null,
+    },
+  })
+    .then(savedSession => console.log('PracticeSession saved:', savedSession.id))
+    .catch(err => console.error('PracticeSession save failed:', err))
 
   return Response.json({
     overallScore,

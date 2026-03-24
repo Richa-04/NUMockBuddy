@@ -299,7 +299,14 @@ export default function ResultsPage() {
     fetch('/api/practice/score', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ questions, answers, company: c, role: r, interviewType: it, jobType: jt, totalFillerCount, selectedLanguage }),
+      body: JSON.stringify({
+        questions, answers,
+        company: c, role: r, interviewType: it, jobType: jt,
+        totalFillerCount, selectedLanguage,
+        answeredCount: Number(sessionStorage.getItem('answeredCount') ?? 0),
+        skippedCount:  Number(sessionStorage.getItem('skippedCount')  ?? 0),
+        totalRepeated: Number(sessionStorage.getItem('repeatedCount') ?? 0),
+      }),
     })
       .then(res => res.json())
       .then(data => {
