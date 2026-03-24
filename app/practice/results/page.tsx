@@ -16,7 +16,7 @@ interface ExpertScore {
 
 interface ScoreResult {
   overallScore: number
-  verdict: 'Strong' | 'Good' | 'Needs Work' | 'Incomplete'
+  verdict: 'Strong' | 'Very Good' | 'Good' | 'Needs Work' | 'Incomplete'
   expertScores: ExpertScore[]
   strengths: string[]
   improvements: string[]
@@ -28,6 +28,7 @@ interface ScoreResult {
 
 const VERDICT_STYLES: Record<string, { bg: string; color: string; border: string }> = {
   Strong:      { bg: '#dcfce7', color: '#15803d', border: '#86efac' },
+  'Very Good': { bg: '#ede9fe', color: '#6d28d9', border: '#c4b5fd' },
   Good:        { bg: '#dbeafe', color: '#1d4ed8', border: '#93c5fd' },
   'Needs Work':{ bg: '#ffedd5', color: '#c2410c', border: '#fdba74' },
   Incomplete:  { bg: '#fee2e2', color: '#b91c1c', border: '#fca5a5' },
@@ -401,7 +402,7 @@ export default function ResultsPage() {
       )}
 
       <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', paddingTop: '48px', marginTop: '48px' }}>
 
           {/* Error state */}
           {error && (
@@ -872,7 +873,7 @@ export default function ResultsPage() {
           )}
 
           {/* ── 6. Bottom Buttons ── */}
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: '48px' }}>
             <Button variant="outline" size="lg" href="/practice">
               Practice Again
             </Button>

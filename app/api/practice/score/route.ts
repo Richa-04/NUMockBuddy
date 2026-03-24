@@ -237,8 +237,9 @@ export async function POST(request: Request) {
 
   const verdict =
     overallScore >= 9 ? 'Strong'     :
-    overallScore >= 7 ? 'Good'       :
-    overallScore >= 5 ? 'Needs Work' : 'Incomplete'
+    overallScore >= 7 ? 'Very Good'  :
+    overallScore >= 5 ? 'Good'       :
+    overallScore >= 3 ? 'Needs Work' : 'Incomplete'
 
   return Response.json({
     overallScore,
