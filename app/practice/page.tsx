@@ -50,7 +50,7 @@ export default function PracticePage() {
     <section style={{
       position: 'relative',
       overflow: 'hidden',
-      paddingTop: 'calc(var(--space-3xl) + 96px)',
+      paddingTop: '80px',
       paddingBottom: 'var(--space-3xl)',
       paddingLeft: 'var(--space-lg)',
       paddingRight: 'var(--space-lg)',
@@ -83,7 +83,7 @@ export default function PracticePage() {
       }} />
 
       <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative' }}>
-        <div style={{ maxWidth: 780, margin: '0 auto', paddingTop: '80px' }}>
+        <div style={{ maxWidth: 780, margin: '0 auto' }}>
           {/* Progress bar */}
           <div style={{ marginBottom: 48 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
