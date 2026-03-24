@@ -25,15 +25,17 @@ function countFillerWords(text: string): Record<string, number> {
   return counts
 }
 
-// Single-word fillers and elongated sound patterns for visual highlighting
+// Single-word fillers for visual highlighting
 const HIGHLIGHT_FILLERS = new Set(['um', 'uh', 'like', 'so', 'basically', 'literally', 'actually', 'right', 'yeah', 'okay'])
-// Explicit short elongated sounds
-const ELONGATED_WORDS = new Set(['umm', 'uhh', 'hmm', 'errr'])
-// Matches patterns like uhhh, ummm, sooo (3+ consecutive identical letters anywhere in word)
-const REPEATED_CHARS_RE = /(.)\1{2,}/i
 
-function isElongated(word: string): boolean {
-  return ELONGATED_WORDS.has(word) || REPEATED_CHARS_RE.test(word)
+function countRepeatedWords(text: string): number {
+  const words = text.toLowerCase().split(/\s+/).filter(Boolean)
+    .map(w => w.replace(/[.,!?'"]+$/, ''))
+  let count = 0
+  for (let i = 1; i < words.length; i++) {
+    if (words[i].length > 1 && words[i] === words[i - 1]) count++
+  }
+  return count
 }
 
 function renderHighlightedWords(text: string) {
@@ -60,8 +62,7 @@ function renderHighlightedWords(text: string) {
     const clean = words[i]
     let bg = ''
     let title = ''
-    if (isElongated(clean)) { bg = '#fed7aa'; title = 'elongated sound' }
-    else if (HIGHLIGHT_FILLERS.has(clean)) { bg = '#fef08a'; title = 'filler word' }
+    if (HIGHLIGHT_FILLERS.has(clean)) { bg = '#fef08a'; title = 'filler word' }
     else if (repeatedIdx.has(i)) { bg = '#bbf7d0'; title = 'repeated word' }
     return bg
       ? <mark key={i} title={title} style={{ background: bg, borderRadius: 2, padding: '0 2px', color: '#78350f', fontStyle: 'normal' }}>{token}</mark>
@@ -357,10 +358,13 @@ export default function InterviewSessionPage() {
   const [transcript, setTranscript] = useState('')
   const [interimTranscript, setInterimTranscript] = useState('')
   const [fillerBreakdown, setFillerBreakdown] = useState<Record<string, number>>({})
+  const [totalRepeatedCount, setTotalRepeatedCount] = useState(0)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const videoFrames = useRef<string[]>([])
+  const frameIntervalRef = useRef<NodeJS.Timeout | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const speechRef = useRef<any>(null)
   const audioStreamRef = useRef<MediaStream | null>(null)
@@ -487,6 +491,29 @@ export default function InterviewSessionPage() {
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
+
+  // Capture a video frame every 10 s (max 5 frames)
+  useEffect(() => {
+    if (!videoActive) return
+    const capture = () => {
+      const video = videoRef.current
+      if (!video || video.readyState < 2) return
+      if (videoFrames.current.length >= 5) return
+      const canvas = document.createElement('canvas')
+      canvas.width = 320
+      canvas.height = 240
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      const b64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1]
+      if (b64) videoFrames.current.push(b64)
+    }
+    capture() // capture one immediately
+    frameIntervalRef.current = setInterval(capture, 10000)
+    return () => {
+      if (frameIntervalRef.current) clearInterval(frameIntervalRef.current)
+    }
+  }, [videoActive])
 
   // Timer — only starts once questions have loaded
   useEffect(() => {
@@ -728,6 +755,7 @@ export default function InterviewSessionPage() {
     setTranscript('')
     setInterimTranscript('')
     const spokenText = isSpeechOnly ? currentAnswer : currentTranscript
+    setTotalRepeatedCount(prev => prev + countRepeatedWords(spokenText))
     const fillers = countFillerWords(spokenText)
     setFillerBreakdown(prev => {
       const updated = { ...prev }
@@ -766,12 +794,14 @@ export default function InterviewSessionPage() {
     sessionStorage.setItem('answeredCount', String(answeredIndices.length))
     sessionStorage.setItem('skippedCount', String(skippedIndices.length))
     sessionStorage.setItem('fillerBreakdown', JSON.stringify(fillerBreakdown))
+    sessionStorage.setItem('repeatedCount', String(totalRepeatedCount))
     sessionStorage.setItem('selectedLanguage', language)
     sessionStorage.setItem('interviewCompany', company)
     sessionStorage.setItem('interviewRole', role)
     sessionStorage.setItem('interviewType', interviewType)
     sessionStorage.setItem('interviewJobType', jobType)
     sessionStorage.setItem('excalidrawDiagrams', JSON.stringify(excalidrawDiagrams))
+    sessionStorage.setItem('videoFrames', JSON.stringify(videoFrames.current))
 
     // Stop transcription
     shouldListenRef.current = false
@@ -1124,7 +1154,6 @@ export default function InterviewSessionPage() {
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     {[
                       { color: '#fef08a', label: 'filler word' },
-                      { color: '#fed7aa', label: 'elongated' },
                       { color: '#bbf7d0', label: 'repeated' },
                     ].map(({ color, label }) => (
                       <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--color-gray-500)' }}>
@@ -1185,7 +1214,6 @@ export default function InterviewSessionPage() {
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   {[
                     { color: '#fef08a', label: 'filler word' },
-                    { color: '#fed7aa', label: 'elongated' },
                     { color: '#bbf7d0', label: 'repeated' },
                   ].map(({ color, label }) => (
                     <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--color-gray-500)' }}>
@@ -1254,7 +1282,6 @@ export default function InterviewSessionPage() {
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     {[
                       { color: '#fef08a', label: 'filler word' },
-                      { color: '#fed7aa', label: 'elongated' },
                       { color: '#bbf7d0', label: 'repeated' },
                     ].map(({ color, label }) => (
                       <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--color-gray-500)' }}>
@@ -1291,8 +1318,11 @@ export default function InterviewSessionPage() {
               {isTechnicalCode
                 ? `${answer.length} chars of code${transcript ? ` · ${transcript.trim().split(/\s+/).length} spoken words` : ''}`
                 : `${answer.length} characters`}
-              {totalFillerCount > 0 && (
-                <span style={{ marginLeft: 8, color: '#92400e' }}>· {totalFillerCount} total fillers this session</span>
+              {(totalFillerCount > 0 || totalRepeatedCount > 0) && (
+                <span style={{ marginLeft: 8, color: '#92400e' }}>
+                  {totalFillerCount > 0 ? `· ${totalFillerCount} total fillers` : ''}
+                  {totalRepeatedCount > 0 ? ` · ${totalRepeatedCount} repeated this session` : ''}
+                </span>
               )}
             </div>
           </div>

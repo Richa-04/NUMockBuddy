@@ -50,7 +50,7 @@ export default function PracticePage() {
     <section style={{
       position: 'relative',
       overflow: 'hidden',
-      paddingTop: 'var(--space-3xl)',
+      paddingTop: '80px',
       paddingBottom: 'var(--space-3xl)',
       paddingLeft: 'var(--space-lg)',
       paddingRight: 'var(--space-lg)',

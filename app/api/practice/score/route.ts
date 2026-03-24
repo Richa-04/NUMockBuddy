@@ -144,37 +144,56 @@ async function callModelAnswers(
 
   if (isTechnical) {
     lang = selectedLanguage
-    instruction = `Write a concise ${selectedLanguage} code solution. Max 20 lines. No verbose comments — clean code only. No test cases, just the solution. CRITICAL: this is embedded in a JSON string — you MUST use the two-character escape \\n for every newline and spaces for indentation. Do NOT emit actual newline characters inside the JSON string.`
+    instruction = `Write a concise ${selectedLanguage} code solution. Max 15 lines. No comments, no test cases — solution only. CRITICAL: embedded in JSON — use \\n for newlines, spaces for indentation, NO literal newline characters.`
     exampleAnswer = `def solve(n):\\n    if n == 0:\\n        return 0\\n    return n + solve(n - 1)`
   } else if (isBehavioral) {
     lang = 'text'
-    instruction = 'Write a STAR-format answer (Situation, Task, Action, Result). Plain text. Max 60 words. No code.'
-    exampleAnswer = '<STAR format, max 60 words>'
+    instruction = 'Write a STAR-format answer (Situation, Task, Action, Result). Plain text. Max 40 words. No code.'
+    exampleAnswer = '<STAR format, max 40 words>'
   } else {
     // System Design
     lang = 'text'
-    instruction = 'Explain the architecture: components, data flow, trade-offs. Plain text. Max 60 words. No code.'
-    exampleAnswer = '<architecture explanation, max 60 words>'
+    instruction = `Write a structured answer with exactly these four sections. Use "**Section:**" as header. Bullet points only. Max 50 words total. CRITICAL: embedded in JSON — use \\n for newlines, NO literal newline characters.`
+    exampleAnswer = `**Requirements:**\\n- 10M req/day, low latency\\n\\n**Architecture:**\\nClient → LB → API → Cache → DB\\n\\n**Key Components:**\\n- Cache: Redis\\n- DB: sharded PostgreSQL\\n\\n**Trade-offs:**\\n- Availability over consistency`
   }
 
-  const prompt =
-`${instruction}
+  const buildPrompt = (inst: string, example: string) =>
+`${inst}
 
 Return ONLY a JSON array, no markdown, no extra text:
-[{"question":"<exact question>","language":"${lang}","answer":"${exampleAnswer}"}]
+[{"question":"<exact question>","language":"${lang}","answer":"${example}"}]
 
 Questions:
 ${qList}`
 
-  const msg = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4000,
-    messages: [{ role: 'user', content: prompt }],
-  })
-  try {
+  const callOnce = async (inst: string, example: string) => {
+    const msg = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: buildPrompt(inst, example) }],
+    })
     return parseJSON<ModelAnswer[]>(extractText(msg))
+  }
+
+  // Attempt 1: full prompt
+  try {
+    return await callOnce(instruction, exampleAnswer)
   } catch {
-    console.error('callModelAnswers: JSON parse failed, returning empty array')
+    console.warn('callModelAnswers: first attempt failed, retrying with shorter prompt')
+  }
+
+  // Attempt 2: stripped-down fallback prompt
+  const shortInstruction = isTechnical
+    ? `Write a ${selectedLanguage} solution. Max 8 lines. No comments. Use \\n for newlines.`
+    : 'One sentence answer per question. Plain text only.'
+  const shortExample = isTechnical
+    ? `def solve(n):\\n    return n`
+    : '<one sentence>'
+
+  try {
+    return await callOnce(shortInstruction, shortExample)
+  } catch {
+    console.error('callModelAnswers: both attempts failed, returning empty array')
     return []
   }
 }
@@ -237,8 +256,9 @@ export async function POST(request: Request) {
 
   const verdict =
     overallScore >= 9 ? 'Strong'     :
-    overallScore >= 7 ? 'Good'       :
-    overallScore >= 5 ? 'Needs Work' : 'Incomplete'
+    overallScore >= 7 ? 'Very Good'  :
+    overallScore >= 5 ? 'Good'       :
+    overallScore >= 3 ? 'Needs Work' : 'Incomplete'
 
   return Response.json({
     overallScore,

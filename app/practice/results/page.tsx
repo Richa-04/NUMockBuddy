@@ -16,7 +16,7 @@ interface ExpertScore {
 
 interface ScoreResult {
   overallScore: number
-  verdict: 'Strong' | 'Good' | 'Needs Work' | 'Incomplete'
+  verdict: 'Strong' | 'Very Good' | 'Good' | 'Needs Work' | 'Incomplete'
   expertScores: ExpertScore[]
   strengths: string[]
   improvements: string[]
@@ -28,6 +28,7 @@ interface ScoreResult {
 
 const VERDICT_STYLES: Record<string, { bg: string; color: string; border: string }> = {
   Strong:      { bg: '#dcfce7', color: '#15803d', border: '#86efac' },
+  'Very Good': { bg: '#ede9fe', color: '#6d28d9', border: '#c4b5fd' },
   Good:        { bg: '#dbeafe', color: '#1d4ed8', border: '#93c5fd' },
   'Needs Work':{ bg: '#ffedd5', color: '#c2410c', border: '#fdba74' },
   Incomplete:  { bg: '#fee2e2', color: '#b91c1c', border: '#fca5a5' },
@@ -250,8 +251,15 @@ export default function ResultsPage() {
   const [answeredCount, setAnsweredCount] = useState(0)
   const [skippedCount, setSkippedCount] = useState(0)
   const [fillerBreakdown, setFillerBreakdown] = useState<Record<string, number>>({})
+  const [totalRepeatedCount, setTotalRepeatedCount] = useState(0)
   const [architectureDiagrams, setArchitectureDiagrams] = useState<Record<number, { text: string; loading: boolean }>>({})
   const [questions, setQuestions] = useState<string[]>([])
+  const [videoAnalysis, setVideoAnalysis] = useState<{
+    eyeContact:  { score: number; tip: string }
+    confidence:  { score: number; tip: string }
+    engagement:  { score: number; tip: string }
+  } | null>(null)
+  const [videoAnalysisLoading, setVideoAnalysisLoading] = useState(false)
 
   useEffect(() => {
     const questions = JSON.parse(sessionStorage.getItem('interviewQuestions') || '[]') as string[]
@@ -269,8 +277,24 @@ export default function ResultsPage() {
 
     const breakdown: Record<string, number> = JSON.parse(sessionStorage.getItem('fillerBreakdown') || '{}')
     setFillerBreakdown(breakdown)
+    setTotalRepeatedCount(Number(sessionStorage.getItem('repeatedCount') ?? 0))
     const totalFillerCount = Object.values(breakdown).reduce((s, c) => s + c, 0)
     const selectedLanguage = sessionStorage.getItem('selectedLanguage') || 'python'
+
+    // Video / body language analysis
+    const frames: string[] = JSON.parse(sessionStorage.getItem('videoFrames') || '[]')
+    if (frames.length > 0) {
+      setVideoAnalysisLoading(true)
+      fetch('/api/practice/video-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ frames }),
+      })
+        .then(res => res.json())
+        .then(data => { if (!data.error) setVideoAnalysis(data) })
+        .catch(() => { /* silently skip if unavailable */ })
+        .finally(() => setVideoAnalysisLoading(false))
+    }
 
     fetch('/api/practice/score', {
       method: 'POST',
@@ -401,7 +425,7 @@ export default function ResultsPage() {
       )}
 
       <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', paddingTop: '48px', marginTop: '48px' }}>
 
           {/* Error state */}
           {error && (
@@ -615,6 +639,7 @@ export default function ResultsPage() {
           {/* ── 4. Speech Analysis ── always shown */}
           {(() => {
             const totalFillers = Object.values(fillerBreakdown).reduce((s, c) => s + c, 0)
+            const repeated = totalRepeatedCount
             const topFillers = Object.entries(fillerBreakdown)
               .sort((a, b) => b[1] - a[1])
               .slice(0, 6)
@@ -644,6 +669,11 @@ export default function ResultsPage() {
                       color: totalFillers > 15 ? '#c2410c' : totalFillers > 5 ? '#b45309' : '#15803d',
                     }}>
                       {totalFillers} filler word{totalFillers !== 1 ? 's' : ''} detected
+                      {repeated > 0 && (
+                        <span style={{ fontSize: 16, fontWeight: 600, color: '#15803d', marginLeft: 12 }}>
+                          · {repeated} repeated
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontSize: 13, color: 'var(--color-gray-500)', marginTop: 2 }}>
                       {totalFillers > 15
@@ -689,7 +719,61 @@ export default function ResultsPage() {
             )
           })()}
 
-          {/* ── 5. Model Answers ── always shown once available */}
+          {/* ── 5. Body Language Analysis ── shown when frames were captured */}
+          {(videoAnalysisLoading || videoAnalysis) && (
+            <div style={{
+              border: '1px solid var(--color-gray-200)',
+              borderRadius: 'var(--radius-lg)',
+              padding: 32, background: '#fff', marginBottom: 32,
+            }}>
+              <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-black)', marginBottom: 8 }}>
+                Body Language Analysis
+              </h2>
+              <p style={{ fontSize: 13, color: 'var(--color-gray-500)', marginBottom: 20 }}>
+                Based on your video during the interview
+              </p>
+
+              {videoAnalysisLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--color-gray-500)', fontSize: 14 }}>
+                  <div style={{
+                    width: 16, height: 16, borderRadius: '50%',
+                    border: '2px solid var(--color-gray-200)',
+                    borderTopColor: 'var(--color-red)',
+                    animation: 'spin 0.7s linear infinite', flexShrink: 0,
+                  }} />
+                  Analysing your body language…
+                </div>
+              ) : videoAnalysis && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {([
+                    { key: 'eyeContact',  label: 'Eye Contact',  icon: '👁️' },
+                    { key: 'confidence',  label: 'Confidence',   icon: '💪' },
+                    { key: 'engagement',  label: 'Engagement',   icon: '⚡' },
+                  ] as const).map(({ key, label, icon }) => {
+                    const { score, tip } = videoAnalysis[key]
+                    const pct = (score / 10) * 100
+                    const barColor = score >= 7 ? '#16a34a' : score >= 5 ? '#d97706' : '#dc2626'
+                    return (
+                      <div key={key}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-black)' }}>
+                            {icon} {label}
+                          </span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: barColor }}>{score}/10</span>
+                        </div>
+                        <div style={{ height: 6, borderRadius: 3, background: 'var(--color-gray-200)', marginBottom: 6 }}>
+                          <div style={{ width: `${pct}%`, height: '100%', borderRadius: 3, background: barColor, transition: 'width 0.4s ease' }} />
+                        </div>
+                        <p style={{ fontSize: 13, color: 'var(--color-gray-600)', margin: 0 }}>{tip}</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── 6. Model Answers ── always shown once available */}
           {modelAnswers.length > 0 && (
             <div style={{
               border: '1px solid var(--color-gray-200)',
@@ -871,8 +955,8 @@ export default function ResultsPage() {
             </div>
           )}
 
-          {/* ── 6. Bottom Buttons ── */}
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+          {/* ── 7. Bottom Buttons ── */}
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: '48px' }}>
             <Button variant="outline" size="lg" href="/practice">
               Practice Again
             </Button>
