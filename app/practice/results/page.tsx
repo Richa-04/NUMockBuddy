@@ -86,6 +86,150 @@ function MiniBar({ score, accent }: { score: number; accent: string }) {
   )
 }
 
+// ─── Model Answer Formatter ───────────────────────────────────────────────────
+
+function FormattedModelAnswer({
+  answer,
+  interviewType,
+  language,
+}: {
+  answer: string
+  interviewType: string
+  language?: string
+}) {
+  if (interviewType === 'Technical') {
+    return (
+      <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid #1e293b' }}>
+        <div style={{
+          background: '#1e293b', padding: '10px 16px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <span style={{ fontSize: 12, color: '#94a3b8', fontFamily: 'var(--font-mono, monospace)' }}>
+            {language ?? 'python'}
+          </span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {['#ef4444', '#facc15', '#4ade80'].map(c => (
+              <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />
+            ))}
+          </div>
+        </div>
+        <pre style={{
+          margin: 0, padding: '20px',
+          background: '#0f172a', color: '#e2e8f0',
+          fontSize: 13, lineHeight: 1.7, overflowX: 'auto',
+          fontFamily: 'var(--font-mono, "Fira Code", "Cascadia Code", monospace)',
+          whiteSpace: 'pre-wrap',
+        }}>
+          {answer}
+        </pre>
+      </div>
+    )
+  }
+
+  // Parse lines and render with structure
+  const lines = answer.split('\n')
+
+  const STAR_HEADERS = new Set(['situation', 'task', 'action', 'result'])
+  const DESIGN_HEADERS = new Set([
+    'requirements', 'high level architecture', 'architecture',
+    'key components', 'components', 'trade-offs', 'trade-offs & challenges',
+    'scalability', 'data flow', 'api design',
+  ])
+  const headerSet = interviewType === 'System Design' ? DESIGN_HEADERS
+    : interviewType === 'Behavioral' ? STAR_HEADERS
+    : new Set<string>()
+
+  const elements: React.ReactNode[] = []
+  let i = 0
+
+  while (i < lines.length) {
+    const raw = lines[i]
+    const trimmed = raw.trim()
+
+    if (!trimmed) { elements.push(<div key={i} style={{ height: 6 }} />); i++; continue }
+
+    // Strip markdown bold markers, trailing colon
+    const cleaned = trimmed.replace(/^\*\*|\*\*:?$|:$/g, '').replace(/\*\*/g, '').trim()
+    const lower = cleaned.toLowerCase()
+
+    // Section header detection
+    const isHeader =
+      headerSet.has(lower) ||
+      (trimmed.startsWith('**') && trimmed.endsWith('**')) ||
+      (trimmed.endsWith(':') && trimmed.length < 60 && !/^[-•]/.test(trimmed))
+
+    if (isHeader) {
+      elements.push(
+        <div key={i} style={{
+          fontWeight: 700, fontSize: 12,
+          color: 'var(--color-red)',
+          textTransform: 'uppercase', letterSpacing: '0.06em',
+          marginTop: elements.length > 0 ? 16 : 0,
+          marginBottom: 6,
+          paddingBottom: 4,
+          borderBottom: '1px solid var(--color-gray-200)',
+        }}>
+          {cleaned}
+        </div>
+      )
+      i++; continue
+    }
+
+    // Numbered or bulleted list item
+    if (/^[-•*]\s+/.test(trimmed) || /^\d+\.\s+/.test(trimmed)) {
+      const text = trimmed.replace(/^[-•*]\s+/, '').replace(/^\d+\.\s+/, '')
+      // Handle inline **bold**
+      const parts = text.split(/(\*\*[^*]+\*\*)/)
+      elements.push(
+        <div key={i} style={{ display: 'flex', gap: 8, paddingLeft: 4, marginBottom: 4, alignItems: 'flex-start' }}>
+          <span style={{ color: 'var(--color-red)', fontWeight: 700, flexShrink: 0, lineHeight: '22px' }}>•</span>
+          <span style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--color-gray-700)' }}>
+            {parts.map((p, j) =>
+              p.startsWith('**')
+                ? <strong key={j}>{p.replace(/\*\*/g, '')}</strong>
+                : p
+            )}
+          </span>
+        </div>
+      )
+      i++; continue
+    }
+
+    // Inline bold text in a paragraph
+    if (trimmed.includes('**')) {
+      const parts = trimmed.split(/(\*\*[^*]+\*\*)/)
+      elements.push(
+        <p key={i} style={{ margin: '4px 0', fontSize: 14, lineHeight: 1.7, color: 'var(--color-gray-700)' }}>
+          {parts.map((p, j) =>
+            p.startsWith('**')
+              ? <strong key={j}>{p.replace(/\*\*/g, '')}</strong>
+              : p
+          )}
+        </p>
+      )
+      i++; continue
+    }
+
+    elements.push(
+      <p key={i} style={{ margin: '4px 0', fontSize: 14, lineHeight: 1.7, color: 'var(--color-gray-700)' }}>
+        {trimmed}
+      </p>
+    )
+    i++
+  }
+
+  return (
+    <div style={{
+      padding: '20px 24px',
+      borderRadius: 'var(--radius-md)',
+      border: '1px solid var(--color-gray-200)',
+      background: 'var(--color-gray-100, #f9fafb)',
+    }}>
+      {elements}
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ResultsPage() {
@@ -106,10 +250,13 @@ export default function ResultsPage() {
   const [answeredCount, setAnsweredCount] = useState(0)
   const [skippedCount, setSkippedCount] = useState(0)
   const [fillerBreakdown, setFillerBreakdown] = useState<Record<string, number>>({})
+  const [architectureDiagrams, setArchitectureDiagrams] = useState<Record<number, { text: string; loading: boolean }>>({})
+  const [questions, setQuestions] = useState<string[]>([])
 
   useEffect(() => {
-    const questions = JSON.parse(sessionStorage.getItem('interviewQuestions') || '[]')
+    const questions = JSON.parse(sessionStorage.getItem('interviewQuestions') || '[]') as string[]
     const answers   = JSON.parse(sessionStorage.getItem('interviewAnswers')   || '[]')
+    setQuestions(questions)
 
     setAnsweredCount(Number(sessionStorage.getItem('answeredCount') ?? 0))
     setSkippedCount(Number(sessionStorage.getItem('skippedCount') ?? 0))
@@ -140,6 +287,58 @@ export default function ResultsPage() {
       .catch(err => setError(err.message ?? 'Failed to score interview'))
       .finally(() => setLoading(false))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch architecture diagram for current System Design question if not yet loaded
+  useEffect(() => {
+    if (sessionData.interviewType !== 'System Design') return
+    const question = questions[carouselIndex]
+    if (!question) return
+    if (architectureDiagrams[carouselIndex] !== undefined) return
+
+    setArchitectureDiagrams(prev => ({ ...prev, [carouselIndex]: { text: '', loading: true } }))
+    fetch('/api/practice/architecture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        setArchitectureDiagrams(prev => ({
+          ...prev,
+          [carouselIndex]: { text: data.diagram ?? '', loading: false },
+        }))
+      })
+      .catch(() => {
+        setArchitectureDiagrams(prev => ({
+          ...prev,
+          [carouselIndex]: { text: 'Failed to generate diagram.', loading: false },
+        }))
+      })
+  }, [carouselIndex, sessionData.interviewType, questions]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const splitDiagram = (raw: string): { diagram: string; prose: string } => {
+    const lines = raw
+      .split('\n')
+      .filter(line => !/^```/.test(line.trim()))
+    const splitAt = lines.findIndex(line => /^\s*\*\*/.test(line))
+    if (splitAt === -1) return { diagram: lines.join('\n').trim(), prose: '' }
+    return {
+      diagram: lines.slice(0, splitAt).join('\n').trim(),
+      prose: lines.slice(splitAt).join('\n').trim(),
+    }
+  }
+
+  const renderWithBold = (text: string) => {
+    const parts = text.split(/\*\*(.*?)\*\*/g)
+    return parts.map((part, i) => i % 2 === 1 ? <strong key={i}>{part}</strong> : part)
+  }
+
+  const renderProse = (text: string) =>
+    text.split('\n').map((line, i) => (
+      <p key={i} style={{ margin: '4px 0', fontSize: 13, lineHeight: 1.7, color: 'var(--color-gray-700)', fontFamily: 'var(--font-body)' }}>
+        {renderWithBold(line)}
+      </p>
+    ))
 
   const verdict = result?.verdict ?? 'Good'
   const verdictStyle = VERDICT_STYLES[verdict] ?? VERDICT_STYLES.Good
@@ -548,45 +747,86 @@ export default function ResultsPage() {
                             </p>
                           </div>
 
-                          {/* Code block for Technical, plain text for everything else */}
-                          {sessionData.interviewType === 'Technical' ? (
-                            <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid #1e293b' }}>
+                            {/* Ideal Architecture diagram (System Design only) */}
+                          {sessionData.interviewType === 'System Design' && (
+                            <div style={{ marginBottom: 16 }}>
                               <div style={{
-                                background: '#1e293b', padding: '10px 16px',
-                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                fontSize: 12, fontWeight: 700, color: 'var(--color-gray-500)',
+                                textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8,
                               }}>
-                                <span style={{ fontSize: 12, color: '#94a3b8', fontFamily: 'var(--font-mono, monospace)' }}>
-                                  {item.language}
-                                </span>
-                                <div style={{ display: 'flex', gap: 6 }}>
-                                  {['#ef4444', '#facc15', '#4ade80'].map(c => (
-                                    <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />
-                                  ))}
-                                </div>
+                                Ideal Architecture
                               </div>
-                              <pre style={{
-                                margin: 0, padding: '20px',
-                                background: '#0f172a', color: '#e2e8f0',
-                                fontSize: 13, lineHeight: 1.7, overflowX: 'auto',
-                                fontFamily: 'var(--font-mono, "Fira Code", "Cascadia Code", monospace)',
-                                whiteSpace: 'pre-wrap',
-                              }}>
-                                {item.answer}
-                              </pre>
-                            </div>
-                          ) : (
-                            <div style={{
-                              padding: '16px 20px',
-                              borderRadius: 'var(--radius-md)',
-                              border: '1px solid var(--color-gray-200)',
-                              background: 'var(--color-gray-100, #f9fafb)',
-                              fontSize: 14,
-                              lineHeight: 1.7,
-                              color: 'var(--color-gray-700)',
-                            }}>
-                              {item.answer}
+                              {architectureDiagrams[carouselIndex]?.loading ? (
+                                <div style={{
+                                  padding: '16px 20px',
+                                  borderRadius: 'var(--radius-md)',
+                                  border: '1px solid var(--color-gray-200)',
+                                  background: '#f8fafc',
+                                  fontSize: 13, color: 'var(--color-gray-400)', textAlign: 'center',
+                                }}>
+                                  Generating architecture diagram…
+                                </div>
+                              ) : architectureDiagrams[carouselIndex]?.text ? (
+                                (() => {
+                                  const { diagram, prose } = splitDiagram(architectureDiagrams[carouselIndex].text)
+                                  return (
+                                    <div>
+                                      <pre style={{
+                                        margin: 0,
+                                        padding: '16px 20px',
+                                        borderRadius: prose ? '8px 8px 0 0' : 'var(--radius-md)',
+                                        border: '1px solid var(--color-gray-200)',
+                                        borderBottom: prose ? 'none' : '1px solid var(--color-gray-200)',
+                                        background: '#f8fafc',
+                                        fontSize: 13, lineHeight: 1.7,
+                                        color: 'var(--color-gray-700)',
+                                        fontFamily: '"Fira Code", "Cascadia Code", "Courier New", monospace',
+                                        whiteSpace: 'pre-wrap',
+                                        overflowX: 'auto',
+                                      }}>
+                                        {diagram}
+                                      </pre>
+                                      {prose && (
+                                        <div style={{
+                                          padding: '12px 20px 16px',
+                                          borderRadius: '0 0 8px 8px',
+                                          border: '1px solid var(--color-gray-200)',
+                                          borderTop: '1px solid var(--color-gray-200)',
+                                          background: '#ffffff',
+                                        }}>
+                                          {renderProse(prose)}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                })()
+                              ) : (
+                                <div style={{
+                                  padding: '16px 20px',
+                                  borderRadius: 'var(--radius-md)',
+                                  border: '1px dashed var(--color-gray-300)',
+                                  background: '#f8fafc',
+                                  fontSize: 13, color: 'var(--color-gray-400)', textAlign: 'center',
+                                }}>
+                                  Architecture diagram will appear here
+                                </div>
+                              )}
                             </div>
                           )}
+
+                          {/* Model answer label */}
+                          <div style={{
+                            fontSize: 12, fontWeight: 700, color: 'var(--color-gray-500)',
+                            textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8,
+                          }}>
+                            Model Answer
+                          </div>
+
+                          <FormattedModelAnswer
+                            answer={item.answer}
+                            interviewType={sessionData.interviewType}
+                            language={item.language}
+                          />
                         </div>
 
                         {/* Right arrow */}

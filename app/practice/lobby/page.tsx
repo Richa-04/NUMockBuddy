@@ -15,7 +15,8 @@ export default function InterviewLobbyPage() {
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraPermission, setCameraPermission] = useState<'pending' | 'granted' | 'denied'>('pending')
 
-  const videoRef = useRef<HTMLVideoElement>(null)
+  const 
+  videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream>(null)
 
   // Load params from URL
@@ -185,7 +186,7 @@ export default function InterviewLobbyPage() {
               gap: 16,
             }}>
               <div>
-                <div style={{ fontSize: 12, color: 'var(--color-gray-500)', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>
+                <div style={{ fontSize: 13, color: 'var(--color-gray-500)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>
                   Company
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-black)' }}>
@@ -193,7 +194,7 @@ export default function InterviewLobbyPage() {
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 12, color: 'var(--color-gray-500)', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>
+                <div style={{ fontSize: 13, color: 'var(--color-gray-500)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>
                   Role
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-black)' }}>
@@ -201,7 +202,7 @@ export default function InterviewLobbyPage() {
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 12, color: 'var(--color-gray-500)', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>
+                <div style={{ fontSize: 13, color: 'var(--color-gray-500)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>
                   Interview Type
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-black)' }}>
@@ -209,7 +210,7 @@ export default function InterviewLobbyPage() {
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 12, color: 'var(--color-gray-500)', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>
+                <div style={{ fontSize: 13, color: 'var(--color-gray-500)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>
                   Job Type
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-black)' }}>
