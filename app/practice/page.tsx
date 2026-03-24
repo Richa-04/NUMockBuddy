@@ -9,31 +9,31 @@ const PROGRAMS = ['Internship / Co-op', 'Full-time']
 const COMPANIES = ['General (No specific company)', 'Google', 'Amazon', 'Meta', 'Microsoft', 'Apple', 'Fidelity', 'Salesforce', 'Adobe', 'Other']
 
 const ROLES = [
-  'SWE',
+  'Software Engineer',
   'Data Science',
-  'ML Engineer',
+  'Machine Learning Engineer',
   'Data Engineer',
   'Data Analyst',
-  'TPM',
-  'PM',
-  'BA',
-  'DevOps/Cloud Engineer',
-  'QA/SDET',
+  'Technical Program Manager',
+  'Product Manager',
+  'Business Analyst',
+  'DevOps / Cloud Engineer',
+  'Quality Assurance / Software Development Engineer in Test',
   'Audit',
 ]
 
 const ROLE_INTERVIEW_TYPES: Record<string, string[]> = {
-  'SWE':                 ['Technical', 'Behavioral', 'System Design', 'HR'],
-  'Data Science':        ['Technical', 'Behavioral', 'HR'],
-  'ML Engineer':         ['Technical', 'Behavioral', 'System Design', 'HR'],
-  'Data Engineer':       ['Technical', 'Behavioral', 'System Design', 'HR'],
-  'Data Analyst':        ['Technical', 'Behavioral', 'HR'],
-  'TPM':                 ['Behavioral', 'System Design', 'HR'],
-  'PM':                  ['Behavioral', 'System Design', 'HR'],
-  'BA':                  ['Technical', 'Behavioral', 'HR'],
-  'DevOps/Cloud Engineer': ['Technical', 'Behavioral', 'System Design', 'HR'],
-  'QA/SDET':             ['Technical', 'Behavioral', 'HR'],
-  'Audit':               ['Technical', 'Behavioral', 'HR'],
+  'Software Engineer':          ['Technical', 'Behavioral', 'System Design', 'HR'],
+  'Data Science':               ['Technical', 'Behavioral', 'HR'],
+  'Machine Learning Engineer':  ['Technical', 'Behavioral', 'System Design', 'HR'],
+  'Data Engineer':              ['Technical', 'Behavioral', 'System Design', 'HR'],
+  'Data Analyst':               ['Technical', 'Behavioral', 'HR'],
+  'Technical Program Manager':  ['Behavioral', 'System Design', 'HR'],
+  'Product Manager':            ['Behavioral', 'System Design', 'HR'],
+  'Business Analyst':           ['Technical', 'Behavioral', 'HR'],
+  'DevOps / Cloud Engineer':    ['Technical', 'Behavioral', 'System Design', 'HR'],
+  'Quality Assurance / Software Development Engineer in Test': ['Technical', 'Behavioral', 'HR'],
+  'Audit':                      ['Technical', 'Behavioral', 'HR'],
 }
 
 export default function PracticePage() {

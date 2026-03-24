@@ -95,23 +95,30 @@ async function callScores(
   questions: string[],
   answers: string[],
   totalFillerCount: number,
+  role: string,
 ): Promise<ScoresAndFeedback> {
-  const fillerNote = totalFillerCount > 0
-    ? `\nFiller words detected: ${totalFillerCount} — lower Communication and Confidence if high.`
-    : ''
-
   const prompt =
-`Score this interview. Return ONLY this JSON, no other text:
-{"experts":[{"name":"Communication","score":7,"feedback":"Clear explanation"},{"name":"Technical","score":6,"feedback":"Good approach"},{"name":"Problem-Solving","score":7,"feedback":"Structured thinking"},{"name":"Behavioral","score":7,"feedback":"Good examples"},{"name":"Confidence","score":6,"feedback":"Steady delivery"},{"name":"Overall","score":7,"feedback":"Solid performance"}],"strengths":["strength1","strength2"],"improvements":["improvement1","improvement2"],"summary":"One sentence summary"}
+`You are a panel of 6 interview experts scoring a ${role} interview. Each expert evaluates only their domain.
 
-Rules: scores 1-10, feedback ≤8 words, strengths/improvements ≤6 words each, summary ≤15 words.${fillerNote}
+Expert evaluation criteria:
+- Communication: jargon usage, clarity of explanation, sentence structure, conciseness
+- Technical: solution correctness, edge cases handled, time/space complexity, code quality
+- Problem-Solving: problem breakdown, logical thinking, whether requirements were clarified
+- Behavioral: STAR format usage, specificity of examples, relevance to question
+- Confidence: filler word count is ${totalFillerCount} (penalise if high), decisive language, directness
+- Overall: holistic interview readiness for ${role} role
+
+Return ONLY this JSON, no other text:
+{"experts":[{"name":"Communication","score":7,"feedback":"Explained concepts clearly but overused technical jargon"},{"name":"Technical","score":6,"feedback":"Correct approach but missed edge cases and complexity"},{"name":"Problem-Solving","score":7,"feedback":"Broke problem down well, clarified requirements first"},{"name":"Behavioral","score":7,"feedback":"Used STAR format with specific relevant examples"},{"name":"Confidence","score":6,"feedback":"Decisive language but too many filler words used"},{"name":"Overall","score":7,"feedback":"Strong candidate, needs deeper technical depth"}],"strengths":["strength1","strength2"],"improvements":["improvement1","improvement2"],"summary":"One sentence overall summary"}
+
+Rules: scores 1-10, each feedback is specific and actionable, ≤20 words, strengths/improvements ≤8 words each, summary ≤20 words.
 
 Q: ${JSON.stringify(questions)}
 A: ${JSON.stringify(answers)}`
 
   const msg = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 1000,
+    max_tokens: 1500,
     messages: [{ role: 'user', content: prompt }],
   })
   return parseJSON<ScoresAndFeedback>(extractText(msg))
@@ -137,7 +144,7 @@ async function callModelAnswers(
 
   if (isTechnical) {
     lang = selectedLanguage
-    instruction = `Write a concise ${selectedLanguage} code solution. Max 10 lines. CRITICAL: this is embedded in a JSON string — you MUST use the two-character escape \\n for every newline and spaces for indentation. Do NOT emit actual newline characters inside the JSON string.`
+    instruction = `Write a concise ${selectedLanguage} code solution. Max 20 lines. No verbose comments — clean code only. No test cases, just the solution. CRITICAL: this is embedded in a JSON string — you MUST use the two-character escape \\n for every newline and spaces for indentation. Do NOT emit actual newline characters inside the JSON string.`
     exampleAnswer = `def solve(n):\\n    if n == 0:\\n        return 0\\n    return n + solve(n - 1)`
   } else if (isBehavioral) {
     lang = 'text'
@@ -161,10 +168,15 @@ ${qList}`
 
   const msg = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: isTechnical ? 3000 : 2000,
+    max_tokens: 4000,
     messages: [{ role: 'user', content: prompt }],
   })
-  return parseJSON<ModelAnswer[]>(extractText(msg))
+  try {
+    return parseJSON<ModelAnswer[]>(extractText(msg))
+  } catch {
+    console.error('callModelAnswers: JSON parse failed, returning empty array')
+    return []
+  }
 }
 
 // ─── POST handler ─────────────────────────────────────────────────────────────
@@ -178,7 +190,7 @@ export async function POST(request: Request) {
   // Run both calls in parallel; parse each independently so one failure doesn't kill the other
   const [scoresResult, modelAnswersResult] = await Promise.all([
     hasAnswers
-      ? callScores(questions, answers, totalFillerCount).catch(err => {
+      ? callScores(questions, answers, totalFillerCount, role).catch(err => {
           console.error('callScores failed:', err)
           return null
         })
