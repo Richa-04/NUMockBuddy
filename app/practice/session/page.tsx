@@ -802,6 +802,7 @@ export default function InterviewSessionPage() {
     sessionStorage.setItem('interviewJobType', jobType)
     sessionStorage.setItem('excalidrawDiagrams', JSON.stringify(excalidrawDiagrams))
     sessionStorage.setItem('videoFrames', JSON.stringify(videoFrames.current))
+    sessionStorage.removeItem('practiceSessionSaved') // reset dedup flag for new session
 
     // Stop transcription
     shouldListenRef.current = false

@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '@/lib/prisma'
+import { NextRequest } from 'next/server'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -184,11 +185,8 @@ ${qList}`
   }
 }
 
-export async function POST(request: Request) {
-  // ── Read nuid from cookie so session is linked to logged-in user ──
-  const cookieHeader = request.headers.get('cookie') ?? ''
-  const nuidMatch = cookieHeader.match(/(?:^|;\s*)nuid=([^;]+)/)
-  const nuid = nuidMatch ? decodeURIComponent(nuidMatch[1]) : null
+export async function POST(request: NextRequest) {
+  const nuid = request.cookies.get('nuid')?.value ?? null
 
   const {
     questions,
@@ -202,6 +200,7 @@ export async function POST(request: Request) {
     answeredCount = 0,
     skippedCount = 0,
     totalRepeated = 0,
+    saveToDB = true,
   } = await request.json()
 
   const hasAnswers = Array.isArray(answers) && answers.some((a: string) => a?.trim())
@@ -259,27 +258,53 @@ export async function POST(request: Request) {
     overallScore >= 5 ? 'Good'       :
     overallScore >= 3 ? 'Needs Work' : 'Incomplete'
 
-  // ── Save session with userId from cookie ──
-  prisma.practiceSession.create({
-    data: {
-      userId:        nuid,
-      company,
-      role,
-      interviewType,
-      jobType,
-      overallScore,
-      verdict,
-      answeredCount,
-      skippedCount,
-      totalFillers:  totalFillerCount,
-      totalRepeated,
-      eyeContact:    null,
-      confidence:    null,
-      engagement:    null,
-    },
-  })
-    .then(savedSession => console.log('PracticeSession saved:', savedSession.id, 'for user:', nuid))
-    .catch(err => console.error('PracticeSession save failed:', err))
+  // ── Save session and capture ID so client can update video scores later ──
+  // saveToDB=false means StrictMode sent a duplicate request — skip.
+  // 3-second window is a backup dedup in case the client flag misfires.
+  let sessionId: string | null = null
+  if (saveToDB) {
+    try {
+      const existing = await prisma.practiceSession.findFirst({
+        where: {
+          userId:        nuid,
+          company,
+          role,
+          interviewType,
+          createdAt:     { gte: new Date(Date.now() - 3_000) },
+        },
+        select: { id: true },
+      })
+      if (existing) {
+        console.log('PracticeSession save skipped (duplicate within 3s):', existing.id)
+        sessionId = existing.id
+      } else {
+        const saved = await prisma.practiceSession.create({
+          data: {
+            userId:        nuid,
+            company,
+            role,
+            interviewType,
+            jobType,
+            overallScore,
+            verdict,
+            answeredCount,
+            skippedCount,
+            totalFillers:  totalFillerCount,
+            totalRepeated,
+            eyeContact:    null,
+            confidence:    null,
+            engagement:    null,
+          },
+        })
+        sessionId = saved.id
+        console.log('PracticeSession saved:', saved.id, 'for user:', nuid)
+      }
+    } catch (err) {
+      console.error('PracticeSession save failed:', err)
+    }
+  } else {
+    console.log('PracticeSession save skipped (client dedup flag)')
+  }
 
   return Response.json({
     overallScore,
@@ -289,5 +314,6 @@ export async function POST(request: Request) {
     improvements: scoresResult.improvements,
     summary:      scoresResult.summary,
     modelAnswers: modelAnswersResult,
+    sessionId,
   })
 }
