@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 
 export default function LoginPage() {
-  const [nuid, setNuid] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -14,8 +14,8 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
 
-    if (!/^\d{9}$/.test(nuid)) {
-      setError('NUID must be exactly 9 digits.')
+    if (!email.endsWith('@northeastern.edu') && !email.endsWith('@husky.neu.edu')) {
+      setError('Must use a Northeastern email (@northeastern.edu or @husky.neu.edu).')
       return
     }
     if (!password) {
@@ -28,7 +28,7 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nuid, password }),
+        body: JSON.stringify({ email, password }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -96,28 +96,24 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="auth-form">
             <div className="auth-field">
-              <label className="auth-label" htmlFor="nuid">
-                NUID
-                <span className="auth-label-hint">9-digit student ID</span>
+              <label className="auth-label" htmlFor="email">
+                Northeastern Email
               </label>
               <div className="auth-input-wrap">
                 <span className="auth-input-icon">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="4" width="18" height="16" rx="2"/>
-                    <circle cx="9" cy="10" r="2"/>
-                    <path d="M15 8h2M15 12h2M7 16h10"/>
+                    <path d="M3 8l9 6 9-6"/>
                   </svg>
                 </span>
                 <input
-                  id="nuid"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={9}
-                  placeholder="000000000"
-                  value={nuid}
-                  onChange={e => setNuid(e.target.value.replace(/\D/g, ''))}
+                  id="email"
+                  type="email"
+                  placeholder="you@northeastern.edu"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
                   className="auth-input"
-                  autoComplete="username"
+                  autoComplete="email"
                 />
               </div>
             </div>

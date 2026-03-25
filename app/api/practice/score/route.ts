@@ -185,10 +185,19 @@ ${qList}`
 }
 
 export async function POST(request: Request) {
-  // ── Read nuid from cookie so session is linked to logged-in user ──
+  // ── Read identifier from cookie so session is linked to logged-in user ──
   const cookieHeader = request.headers.get('cookie') ?? ''
-  const nuidMatch = cookieHeader.match(/(?:^|;\s*)nuid=([^;]+)/)
-  const nuid = nuidMatch ? decodeURIComponent(nuidMatch[1]) : null
+  const emailMatch = cookieHeader.match(/(?:^|;\s*)email=([^;]+)/)
+  const nuidMatch  = cookieHeader.match(/(?:^|;\s*)nuid=([^;]+)/)
+  const emailFromCookie = emailMatch ? decodeURIComponent(emailMatch[1]) : null
+  const nuidFromCookie  = nuidMatch  ? decodeURIComponent(nuidMatch[1])  : null
+
+  // Resolve to nuid for storage (sessions are keyed by nuid)
+  let nuid: string | null = nuidFromCookie
+  if (!nuid && emailFromCookie) {
+    const found = await prisma.user.findUnique({ where: { email: emailFromCookie }, select: { nuid: true } })
+    nuid = found?.nuid ?? null
+  }
 
   const {
     questions,

@@ -87,9 +87,7 @@ export default function CTASection() {
         </div>
 
         {/* Trust line */}
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', marginTop: 36 }}>
-          Free for all Northeastern students. No credit card.
-        </p>
+     
       </div>
     </section>
   )
