@@ -152,20 +152,6 @@ Open [http://localhost:3000](http://localhost:3000).
 
 > Update teammate names above once confirmed.
 
----
-
-## Screenshots
-
-*Coming soon*
-
-<!-- Add screenshots here:
-![Home](screenshots/home.png)
-![Practice Setup](screenshots/practice-setup.png)
-![Interview Session](screenshots/session.png)
-![Results](screenshots/results.png)
-![Resume AI](screenshots/resume-ai.png)
-![Dashboard](screenshots/dashboard.png)
-![Volunteers](screenshots/volunteers.png)
 -->
 
 ---
