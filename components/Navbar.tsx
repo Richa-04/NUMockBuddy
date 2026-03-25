@@ -9,6 +9,8 @@ const NAV_LINKS = [
   { href: '/volunteers', label: 'Volunteers' },
   { href: '/resume', label: 'Resume' },
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/help', label: 'Help' },
+  { href: '/feedback', label: 'Feedback' },
 ]
 
 export default function Navbar() {
@@ -75,7 +77,7 @@ export default function Navbar() {
               href={link.href}
               style={{
                 padding: '6px 14px',
-                borderRadius: 'var(--radius-full)',
+                borderRadius: '999px',
                 fontSize: 14,
                 fontWeight: 500,
                 color: 'var(--color-gray-600)',

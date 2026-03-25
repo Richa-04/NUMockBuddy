@@ -106,3 +106,12 @@ model PracticeSession {
   createdAt     DateTime @default(now())
 }
 
+
+model Feedback {
+  id         String   @id @default(cuid())
+  type       String
+  rating     Int?
+  text       String
+  extra      Json?
+  createdAt  DateTime @default(now())
+}
