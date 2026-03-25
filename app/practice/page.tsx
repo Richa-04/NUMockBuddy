@@ -7,8 +7,34 @@ import Badge from '@/components/ui/Badge'
 
 const PROGRAMS = ['Internship / Co-op', 'Full-time']
 const COMPANIES = ['General (No specific company)', 'Google', 'Amazon', 'Meta', 'Microsoft', 'Apple', 'Fidelity', 'Salesforce', 'Adobe', 'Other']
-const ROLE_TYPES = ['SWE', 'DS', 'TPM', 'Audit']
-const INTERVIEW_TYPES = ['Technical', 'Behavioral', 'System Design', 'HR']
+
+const ROLES = [
+  'Software Engineer',
+  'Data Science',
+  'Machine Learning Engineer',
+  'Data Engineer',
+  'Data Analyst',
+  'Technical Program Manager',
+  'Product Manager',
+  'Business Analyst',
+  'DevOps / Cloud Engineer',
+  'Quality Assurance / Software Development Engineer in Test',
+  'Audit',
+]
+
+const ROLE_INTERVIEW_TYPES: Record<string, string[]> = {
+  'Software Engineer':          ['Technical', 'Behavioral', 'System Design', 'HR'],
+  'Data Science':               ['Technical', 'Behavioral', 'HR'],
+  'Machine Learning Engineer':  ['Technical', 'Behavioral', 'System Design', 'HR'],
+  'Data Engineer':              ['Technical', 'Behavioral', 'System Design', 'HR'],
+  'Data Analyst':               ['Technical', 'Behavioral', 'HR'],
+  'Technical Program Manager':  ['Behavioral', 'System Design', 'HR'],
+  'Product Manager':            ['Behavioral', 'System Design', 'HR'],
+  'Business Analyst':           ['Technical', 'Behavioral', 'HR'],
+  'DevOps / Cloud Engineer':    ['Technical', 'Behavioral', 'System Design', 'HR'],
+  'Quality Assurance / Software Development Engineer in Test': ['Technical', 'Behavioral', 'HR'],
+  'Audit':                      ['Technical', 'Behavioral', 'HR'],
+}
 
 export default function PracticePage() {
   const router = useRouter()
@@ -18,12 +44,13 @@ export default function PracticePage() {
   const [selectedInterview, setSelectedInterview] = useState('')
 
   const completedSteps = [selectedProgram, selectedCompany, selectedRole, selectedInterview].filter(Boolean).length
+  const availableInterviewTypes = selectedRole ? ROLE_INTERVIEW_TYPES[selectedRole] ?? [] : []
 
   return (
     <section style={{
       position: 'relative',
       overflow: 'hidden',
-      paddingTop: 'var(--space-3xl)',
+      paddingTop: '80px',
       paddingBottom: 'var(--space-3xl)',
       paddingLeft: 'var(--space-lg)',
       paddingRight: 'var(--space-lg)',
@@ -78,7 +105,7 @@ export default function PracticePage() {
             </div>
           </div>
 
-          {/* Program selector */}
+          {/* Job Type */}
           <div style={{ marginBottom: 32 }}>
             <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-black)', marginBottom: 16 }}>Job Type</h3>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -104,7 +131,7 @@ export default function PracticePage() {
             </div>
           </div>
 
-          {/* Target company */}
+          {/* Company */}
           <div style={{ marginBottom: 32 }}>
             <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-black)', marginBottom: 16 }}>Company</h3>
             <select
@@ -128,59 +155,61 @@ export default function PracticePage() {
             </select>
           </div>
 
-          {/* Role type grid */}
+          {/* Role Type — dropdown */}
           <div style={{ marginBottom: 32 }}>
             <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-black)', marginBottom: 16 }}>Role Type</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12 }}>
-              {ROLE_TYPES.map(role => (
-                <button
-                  key={role}
-                  onClick={() => setSelectedRole(role)}
-                  style={{
-                    padding: '16px',
-                    borderRadius: 'var(--radius-md)',
-                    border: `1.5px solid ${selectedRole === role ? 'var(--color-red)' : 'var(--color-gray-200)'}`,
-                    background: selectedRole === role ? 'var(--color-red)' : 'transparent',
-                    color: selectedRole === role ? '#fff' : 'var(--color-black)',
-                    fontSize: 14,
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    textAlign: 'center',
-                  }}
-                >
-                  {role}
-                </button>
+            <select
+              value={selectedRole}
+              onChange={(e) => {
+                setSelectedRole(e.target.value)
+                setSelectedInterview('')
+              }}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: 'var(--radius-md)',
+                border: '1.5px solid var(--color-gray-200)',
+                background: '#fff',
+                fontSize: 14,
+                color: selectedRole ? 'var(--color-black)' : 'var(--color-gray-400)',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="">Select a role</option>
+              {ROLES.map(role => (
+                <option key={role} value={role}>{role}</option>
               ))}
-            </div>
+            </select>
           </div>
 
-          {/* Interview type grid */}
-          <div style={{ marginBottom: 48 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-black)', marginBottom: 16 }}>Interview Type</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-              {INTERVIEW_TYPES.map(type => (
-                <button
-                  key={type}
-                  onClick={() => setSelectedInterview(type)}
-                  style={{
-                    padding: '16px',
-                    borderRadius: 'var(--radius-md)',
-                    border: `1.5px solid ${selectedInterview === type ? 'var(--color-red)' : 'var(--color-gray-200)'}`,
-                    background: selectedInterview === type ? 'var(--color-red)' : 'transparent',
-                    color: selectedInterview === type ? '#fff' : 'var(--color-black)',
-                    fontSize: 14,
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    textAlign: 'center',
-                  }}
-                >
-                  {type}
-                </button>
-              ))}
+          {/* Interview Type — only shown after role is selected */}
+          {selectedRole && (
+            <div style={{ marginBottom: 48 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-black)', marginBottom: 16 }}>Interview Type</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+                {availableInterviewTypes.map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setSelectedInterview(type)}
+                    style={{
+                      padding: '16px',
+                      borderRadius: 'var(--radius-md)',
+                      border: `1.5px solid ${selectedInterview === type ? 'var(--color-red)' : 'var(--color-gray-200)'}`,
+                      background: selectedInterview === type ? 'var(--color-red)' : 'transparent',
+                      color: selectedInterview === type ? '#fff' : 'var(--color-black)',
+                      fontSize: 14,
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Buttons */}
           <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between' }}>

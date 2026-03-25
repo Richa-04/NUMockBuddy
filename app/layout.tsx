@@ -2,6 +2,9 @@ import type { Metadata } from 'next'
 import './globals.css'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
+import { ChatWidgetProvider } from '@/app/contexts/ChatWidgetContext'
+import ChatWidget from '@/components/ChatWidget'
+import AccessibilityWidget from '@/components/AccessibilityWidget'
 
 export const metadata: Metadata = {
   title: 'MockMate — Interview Prep for NU Students',
@@ -21,15 +24,19 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body>
-        <Navbar />
-        <main>{children}</main>
-        <Footer />
+      <body suppressHydrationWarning>
+        <ChatWidgetProvider>
+          <Navbar />
+          <main>{children}</main>
+          <Footer />
+          <ChatWidget />
+          <AccessibilityWidget />
+        </ChatWidgetProvider>
       </body>
     </html>
   )

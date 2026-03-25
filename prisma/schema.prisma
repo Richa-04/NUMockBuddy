@@ -88,3 +88,43 @@ model Session {
   notes       String?
   createdAt   DateTime  @default(now())
 }
+
+model User {
+  id           String   @id @default(cuid())
+  nuid         String   @unique
+  fullName     String
+  email        String   @unique
+  program      String?
+  gradYear     String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model PracticeSession {
+  id            String   @id @default(cuid())
+  userId        String?
+  company       String
+  role          String
+  interviewType String
+  jobType       String
+  overallScore  Int
+  verdict       String
+  answeredCount Int      @default(0)
+  skippedCount  Int      @default(0)
+  totalFillers  Int      @default(0)
+  totalRepeated Int      @default(0)
+  eyeContact    Float?
+  confidence    Float?
+  engagement    Float?
+  createdAt     DateTime @default(now())
+}
+
+
+model Feedback {
+  id         String   @id @default(cuid())
+  type       String
+  rating     Int?
+  text       String
+  extra      Json?
+  createdAt  DateTime @default(now())
+}

@@ -4,7 +4,7 @@ const STEPS = [
   {
     number: '01',
     title: 'Set up your session',
-    desc: 'Choose your target company, role type (SWE, DS, TPM, or Audit), program (MSCS/MSIS), and interview format. MockMate builds a session specifically for your target.',
+    desc: 'Choose your target company, role type (SWE, DS, TPM, or Audit), programs, and interview format. MockMate builds a session specifically for your target.',
     tags: ['Google', 'SWE', 'Technical'],
   },
   {
@@ -16,7 +16,7 @@ const STEPS = [
   {
     number: '03',
     title: 'Get your panel verdict',
-    desc: 'Six independent AI experts score your answer simultaneously — covering communication, technical depth, behavioral framing, confidence, and more. Plus a model answer to compare.',
+    desc: 'Six independent AI experts score your answer simultaneously, covering communication, technical depth, behavioral framing, confidence, and more. Plus a model answer to compare.',
     tags: ['6 experts', 'Score /10', 'Model answer'],
   },
   {

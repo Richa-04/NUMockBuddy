@@ -1,17 +1,35 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 const NAV_LINKS = [
   { href: '/practice', label: 'Practice' },
   { href: '/volunteers', label: 'Volunteers' },
   { href: '/resume', label: 'Resume' },
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/help', label: 'Help' },
+  { href: '/feedback', label: 'Feedback' },
 ]
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(false)
+  const router = useRouter()
+
+  useEffect(() => {
+  fetch('/api/auth/me')
+    .then(res => res.json())
+    .then(data => setLoggedIn(!!data.loggedIn))
+    .catch(() => setLoggedIn(false))
+}, [])
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    setLoggedIn(false)
+    router.push('/')
+  }
 
   return (
     <header style={{
@@ -31,32 +49,24 @@ export default function Navbar() {
         alignItems: 'center',
         justifyContent: 'space-between',
       }}>
+
         {/* Logo */}
         <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 34,
-            height: 34,
-            background: 'var(--color-red)',
-            borderRadius: 8,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: 15,
+          <img
+            src="/nuLogo.jpg"
+            alt="Northeastern University"
+            style={{ height: 36, width: 'auto', objectFit: 'contain' }}
+          />
+          <div style={{ width: 1, height: 24, background: 'var(--color-gray-200)' }} />
+          <span style={{
             fontFamily: 'var(--font-display)',
-            letterSpacing: '-0.5px',
+            fontSize: 17,
+            fontWeight: 700,
+            color: 'var(--color-black)',
+            letterSpacing: '-0.4px',
           }}>
-            M
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-black)', lineHeight: 1.1, letterSpacing: '-0.3px' }}>
-              MockMate
-            </div>
-            <div style={{ fontSize: 10, color: 'var(--color-gray-400)', lineHeight: 1, letterSpacing: '0.2px' }}>
-              Northeastern University
-            </div>
-          </div>
+            NUMockBuddy
+          </span>
         </Link>
 
         {/* Desktop Nav */}
@@ -67,7 +77,7 @@ export default function Navbar() {
               href={link.href}
               style={{
                 padding: '6px 14px',
-                borderRadius: 'var(--radius-full)',
+                borderRadius: '999px',
                 fontSize: 14,
                 fontWeight: 500,
                 color: 'var(--color-gray-600)',
@@ -90,22 +100,49 @@ export default function Navbar() {
 
         {/* CTA */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Link
-            href="/login"
-            style={{
-              padding: '8px 20px',
-              borderRadius: 'var(--radius-full)',
-              fontSize: 14,
-              fontWeight: 600,
-              background: 'var(--color-red)',
-              color: '#fff',
-              textDecoration: 'none',
-              boxShadow: 'var(--shadow-red)',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            Sign in with NUid
-          </Link>
+          {loggedIn ? (
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: '8px 20px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: 14,
+                fontWeight: 600,
+                background: 'transparent',
+                color: 'var(--color-red)',
+                border: '1.5px solid var(--color-red)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget.style.background = 'var(--color-red)')
+                ;(e.currentTarget.style.color = '#fff')
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget.style.background = 'transparent')
+                ;(e.currentTarget.style.color = 'var(--color-red)')
+              }}
+            >
+              Log out
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              style={{
+                padding: '8px 20px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: 14,
+                fontWeight: 600,
+                background: 'var(--color-red)',
+                color: '#fff',
+                textDecoration: 'none',
+                boxShadow: 'var(--shadow-red)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              Sign in with NUid
+            </Link>
+          )}
 
           {/* Mobile hamburger */}
           <button
@@ -162,6 +199,24 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
+          {loggedIn && (
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 15,
+                fontWeight: 500,
+                color: 'var(--color-red)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              Log out
+            </button>
+          )}
         </div>
       )}
 

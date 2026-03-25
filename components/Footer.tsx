@@ -1,88 +1,64 @@
+'use client'
+
 import Link from 'next/link'
 
 export default function Footer() {
   return (
     <footer style={{
       borderTop: '1px solid var(--color-gray-200)',
-      padding: 'var(--space-2xl) var(--space-lg) var(--space-xl)',
-      background: 'var(--color-gray-100)',
+      padding: '32px 24px',
+      background: '#fff',
     }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: 'var(--space-2xl)',
-          marginBottom: 'var(--space-2xl)',
-        }}>
-          {/* Brand */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <div style={{
-                width: 32,
-                height: 32,
-                background: 'var(--color-red)',
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: 14,
-              }}>M</div>
-              <span style={{ fontWeight: 700, fontSize: 15 }}>MockMate</span>
-            </div>
-            <p style={{ fontSize: 13, color: 'var(--color-gray-400)', lineHeight: 1.6, maxWidth: 240 }}>
-              AI-powered interview prep built by NU students, for NU students.
-            </p>
-          </div>
+      <div style={{
+        maxWidth: 1200,
+        margin: '0 auto',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16,
+      }}>
 
-          {/* Platform */}
-          <div>
-            <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-gray-400)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 14 }}>Platform</p>
-            {['Practice', 'Volunteers', 'Resume Analyzer', 'Dashboard'].map(item => (
-              <Link key={item} href="#" style={{ display: 'block', fontSize: 14, color: 'var(--color-gray-600)', textDecoration: 'none', marginBottom: 8, lineHeight: 1.4 }}>
-                {item}
-              </Link>
-            ))}
-          </div>
+        {/* Left — brand */}
+        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-black)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            style={{
+              background: 'var(--color-red)',
+              color: '#fff',
+              padding: '10px 20px',
+              borderRadius: 6,
+              fontWeight: 600,
+              fontSize: 13,
+              cursor: 'pointer',
+              border: 'none',
+            }}
+          >
+            NUMockBuddy
+          </button>
+          <span style={{ fontWeight: 400, color: 'var(--color-gray-400)' }}>
+            · Northeastern University
+          </span>
+        </p>
 
-          {/* Resources */}
-          <div>
-            <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-gray-400)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 14 }}>Resources</p>
-            {['Company Prep Guides', 'Interview Tips', 'Become a Volunteer', 'NU Career Center'].map(item => (
-              <Link key={item} href="#" style={{ display: 'block', fontSize: 14, color: 'var(--color-gray-600)', textDecoration: 'none', marginBottom: 8, lineHeight: 1.4 }}>
-                {item}
-              </Link>
-            ))}
-          </div>
-
-          {/* Built by */}
-          <div>
-            <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-gray-400)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 14 }}>Built by</p>
-            {['Mansi Singh', 'Jia Wei', 'Richa Padhariya', 'Aparajita Sharma'].map(name => (
-              <p key={name} style={{ fontSize: 14, color: 'var(--color-gray-600)', marginBottom: 6 }}>{name}</p>
-            ))}
-          </div>
+        {/* Center — links */}
+        <div style={{ display: 'flex', gap: 24 }}>
+          {['Practice', 'Volunteers', 'Resume', 'Dashboard', 'Companies'].map(item => (
+            <Link key={item} href={`/${item.toLowerCase()}`} style={{
+              fontSize: 13,
+              color: 'var(--color-gray-400)',
+              textDecoration: 'none',
+            }}>
+              {item}
+            </Link>
+          ))}
         </div>
 
-        <div style={{
-          borderTop: '1px solid var(--color-gray-200)',
-          paddingTop: 'var(--space-lg)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 12,
-        }}>
-          <p style={{ fontSize: 13, color: 'var(--color-gray-400)' }}>
-            © 2025 MockMate · Northeastern University Seattle
-          </p>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {['#C8102E', '#111'].map((c, i) => (
-              <div key={i} style={{ width: 8, height: 8, borderRadius: 99, background: c }} />
-            ))}
-          </div>
-        </div>
+        {/* Right — copyright */}
+        <p style={{ fontSize: 13, color: 'var(--color-gray-400)', margin: 0 }}>
+          © 2026 · Built by NU Seattle students
+        </p>
+
       </div>
     </footer>
   )
