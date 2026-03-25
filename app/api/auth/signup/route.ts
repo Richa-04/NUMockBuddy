@@ -35,7 +35,7 @@ response.cookies.set('nuid', user.nuid, {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'lax',
-  maxAge: 60 * 60 * 24 * 7,
+  maxAge: 60 * 60 * 24 * 365 * 10, // 10 years — persists until explicit logout
   path: '/',
 })
 return response

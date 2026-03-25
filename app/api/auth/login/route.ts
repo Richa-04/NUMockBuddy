@@ -4,15 +4,15 @@ import bcrypt from 'bcryptjs'
 
 export async function POST(req: NextRequest) {
   try {
-    const { nuid, password } = await req.json()
+    const { email, password } = await req.json()
 
-    if (!nuid || !password) {
-      return NextResponse.json({ error: 'NUID and password are required.' }, { status: 400 })
+    if (!email || !password) {
+      return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 })
     }
 
-    const user = await prisma.user.findUnique({ where: { nuid } })
+    const user = await prisma.user.findUnique({ where: { email } })
     if (!user) {
-      return NextResponse.json({ error: 'No account found with this NUID.' }, { status: 401 })
+      return NextResponse.json({ error: 'No account found with this email.' }, { status: 401 })
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash)
@@ -21,11 +21,11 @@ export async function POST(req: NextRequest) {
     }
 
     const response = NextResponse.json({ success: true, userId: user.id, name: user.fullName })
-    response.cookies.set('nuid', user.nuid, {
+    response.cookies.set('email', user.email, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: 60 * 60 * 24 * 365 * 10, // 10 years — persists until explicit logout
       path: '/',
     })
     return response
