@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 
-type Program = 'MSCS' | 'MSIS' | 'MSECE' | 'MBAi' | 'Other'
+type Program = 'MSCS' | 'MSIS' | 'MSECE' | 'MBAI' | 'Other'
 
 export default function SignupPage() {
   const [step, setStep] = useState(1)
@@ -71,7 +71,7 @@ export default function SignupPage() {
     }
   }
 
-  const programs: Program[] = ['MSCS', 'MSIS', 'MSECE', 'MBAi', 'Other']
+  const programs: Program[] = ['MSCS', 'MSIS', 'MSECE', 'MBAI', 'Other']
   const years = ['2025', '2026', '2027', '2028', '2029']
 
   return (

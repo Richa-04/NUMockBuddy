@@ -3,14 +3,15 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(req: NextRequest) {
   try {
-    const nuid = req.cookies.get('nuid')?.value
+    const emailCookie = req.cookies.get('email')?.value
+    const nuidCookie  = req.cookies.get('nuid')?.value
 
-    if (!nuid) {
+    if (!emailCookie && !nuidCookie) {
       return NextResponse.json({ error: 'Not logged in' }, { status: 401 })
     }
 
     const user = await prisma.user.findUnique({
-      where: { nuid },
+      where: emailCookie ? { email: emailCookie } : { nuid: nuidCookie! },
       select: {
         fullName: true,
         nuid:     true,
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
     }
 
     const sessions = await prisma.practiceSession.findMany({
-      where:   { userId: nuid },
+      where:   { userId: user.nuid },
       orderBy: { createdAt: 'desc' },
     })
 

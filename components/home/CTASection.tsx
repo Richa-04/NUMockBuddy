@@ -3,12 +3,13 @@ import Badge from '@/components/ui/Badge'
 
 export default function CTASection() {
   return (
-    <section style={{
-      padding: 'var(--space-3xl) var(--space-lg)',
-      background: 'var(--color-black)',
-      position: 'relative',
-      overflow: 'hidden',
-    }}>
+   <section style={{
+  padding: 'var(--space-3xl) var(--space-lg)',
+  paddingBottom: '50px',
+  background: 'var(--color-black)',
+  position: 'relative',
+  overflow: 'hidden',
+}}>
       {/* Decorative blobs */}
       <div style={{
         position: 'absolute',
@@ -22,7 +23,7 @@ export default function CTASection() {
       }} />
 
       <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center', position: 'relative' }}>
-        <Badge style={{ marginBottom: 28, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.12)' }}>
+        <Badge style={{ margin: 28, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.12)' }}>
           Northeastern Students & Alumni
         </Badge>
 
@@ -87,9 +88,7 @@ export default function CTASection() {
         </div>
 
         {/* Trust line */}
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', marginTop: 36 }}>
-          Free for all Northeastern students. No credit card.
-        </p>
+     
       </div>
     </section>
   )
