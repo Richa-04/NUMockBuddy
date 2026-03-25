@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 
@@ -260,8 +260,22 @@ export default function ResultsPage() {
     engagement:  { score: number; tip: string }
   } | null>(null)
   const [videoAnalysisLoading, setVideoAnalysisLoading] = useState(false)
+  const practiceSessionId = useRef<string | null>(null)
+  const pendingVideoScores = useRef<{ eyeContact: number; confidence: number; engagement: number } | null>(null)
+
+  // When both sessionId and video scores are available, persist video scores
+  function maybeSaveVideoScores(sid: string | null, scores: typeof pendingVideoScores.current) {
+    if (!sid || !scores) return
+    fetch('/api/practice/update-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: sid, ...scores }),
+    }).catch(() => { /* silently skip if DB unavailable */ })
+  }
 
   useEffect(() => {
+    const controller = new AbortController()
+
     const questions = JSON.parse(sessionStorage.getItem('interviewQuestions') || '[]') as string[]
     const answers   = JSON.parse(sessionStorage.getItem('interviewAnswers')   || '[]')
     setQuestions(questions)
@@ -289,13 +303,35 @@ export default function ResultsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ frames }),
+        signal: controller.signal,
       })
         .then(res => res.json())
-        .then(data => { if (!data.error) setVideoAnalysis(data) })
+        .then(data => {
+          if (data.error) return
+          setVideoAnalysis(data)
+          const scores = {
+            eyeContact:  data.eyeContact.score,
+            confidence:  data.confidence.score,
+            engagement:  data.engagement.score,
+          }
+          // Only save if at least one score > 0 (all-zero = no face detected, not worth persisting)
+          const hasRealScores = scores.eyeContact > 0 || scores.confidence > 0 || scores.engagement > 0
+          if (!hasRealScores) return
+          pendingVideoScores.current = scores
+          // Save immediately if sessionId is already known; otherwise wait for score API
+          maybeSaveVideoScores(practiceSessionId.current, scores)
+        })
         .catch(() => { /* silently skip if unavailable */ })
         .finally(() => setVideoAnalysisLoading(false))
     }
 
+    // Dedup guard: first StrictMode effect sets this flag synchronously;
+    // second effect sees it and skips the DB save.
+    const alreadySaved = !!sessionStorage.getItem('practiceSessionSaved')
+    if (!alreadySaved) sessionStorage.setItem('practiceSessionSaved', '1')
+
+    // No AbortController on this fetch — Effect 1 must complete so saveToDB:true reaches
+    // the server. Effect 2 will also complete but with saveToDB:false, so only one DB save.
     fetch('/api/practice/score', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -306,17 +342,27 @@ export default function ResultsPage() {
         answeredCount: Number(sessionStorage.getItem('answeredCount') ?? 0),
         skippedCount:  Number(sessionStorage.getItem('skippedCount')  ?? 0),
         totalRepeated: Number(sessionStorage.getItem('repeatedCount') ?? 0),
+        saveToDB: !alreadySaved,
       }),
     })
       .then(res => res.json())
       .then(data => {
-        // Always capture model answers if present, regardless of scoring errors
         if (data.modelAnswers?.length) setModelAnswers(data.modelAnswers)
         if (data.error) setError(data.error)
         else setResult(data)
+        // Store sessionId and save video scores if they already arrived
+        if (data.sessionId) {
+          practiceSessionId.current = data.sessionId
+          maybeSaveVideoScores(data.sessionId, pendingVideoScores.current)
+        }
+        setLoading(false)
       })
-      .catch(err => setError(err.message ?? 'Failed to score interview'))
-      .finally(() => setLoading(false))
+      .catch(err => {
+        setError(err.message ?? 'Failed to score interview')
+        setLoading(false)
+      })
+
+    return () => controller.abort()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch architecture diagram for current System Design question if not yet loaded
@@ -431,7 +477,7 @@ export default function ResultsPage() {
         </div>
       )}
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative' }}>
+      {!loading && <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', paddingTop: '48px', marginTop: '48px' }}>
 
           {/* Error state */}
@@ -750,33 +796,41 @@ export default function ResultsPage() {
                   }} />
                   Analysing your body language…
                 </div>
-              ) : videoAnalysis && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {([
-                    { key: 'eyeContact',  label: 'Eye Contact',  icon: '👁️' },
-                    { key: 'confidence',  label: 'Confidence',   icon: '💪' },
-                    { key: 'engagement',  label: 'Engagement',   icon: '⚡' },
-                  ] as const).map(({ key, label, icon }) => {
-                    const { score, tip } = videoAnalysis[key]
-                    const pct = (score / 10) * 100
-                    const barColor = score >= 7 ? '#16a34a' : score >= 5 ? '#d97706' : '#dc2626'
-                    return (
-                      <div key={key}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-black)' }}>
-                            {icon} {label}
-                          </span>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: barColor }}>{score}/10</span>
+              ) : videoAnalysis && (() => {
+                const allZero = videoAnalysis.eyeContact.score === 0 && videoAnalysis.confidence.score === 0 && videoAnalysis.engagement.score === 0
+                if (allZero) return (
+                  <div style={{ padding: '16px', background: '#fafafa', borderRadius: 8, border: '1px solid var(--color-gray-200)', fontSize: 13, color: 'var(--color-gray-500)' }}>
+                    Face not detected in video frames. Ensure your camera is on and your face is clearly visible for body language analysis.
+                  </div>
+                )
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {([
+                      { key: 'eyeContact',  label: 'Eye Contact',  icon: '👁️' },
+                      { key: 'confidence',  label: 'Confidence',   icon: '💪' },
+                      { key: 'engagement',  label: 'Engagement',   icon: '⚡' },
+                    ] as const).map(({ key, label, icon }) => {
+                      const { score, tip } = videoAnalysis[key]
+                      const pct = (score / 10) * 100
+                      const barColor = score >= 7 ? '#16a34a' : score >= 5 ? '#d97706' : '#dc2626'
+                      return (
+                        <div key={key}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-black)' }}>
+                              {icon} {label}
+                            </span>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: barColor }}>{score}/10</span>
+                          </div>
+                          <div style={{ height: 6, borderRadius: 3, background: 'var(--color-gray-200)', marginBottom: 6 }}>
+                            <div style={{ width: `${pct}%`, height: '100%', borderRadius: 3, background: barColor, transition: 'width 0.4s ease' }} />
+                          </div>
+                          <p style={{ fontSize: 13, color: 'var(--color-gray-600)', margin: 0 }}>{tip}</p>
                         </div>
-                        <div style={{ height: 6, borderRadius: 3, background: 'var(--color-gray-200)', marginBottom: 6 }}>
-                          <div style={{ width: `${pct}%`, height: '100%', borderRadius: 3, background: barColor, transition: 'width 0.4s ease' }} />
-                        </div>
-                        <p style={{ fontSize: 13, color: 'var(--color-gray-600)', margin: 0 }}>{tip}</p>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                      )
+                    })}
+                  </div>
+                )
+              })()}
             </div>
           )}
 
@@ -973,7 +1027,7 @@ export default function ResultsPage() {
           </div>
 
         </div>
-      </div>
+      </div>}
     </section>
   )
 }

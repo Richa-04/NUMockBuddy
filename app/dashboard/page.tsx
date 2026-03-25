@@ -218,18 +218,21 @@ export default function DashboardPage() {
                     {latest.company} — {latest.role} · {new Date(latest.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </p>
                   {[
-                    { label: 'Overall Score', val: latest.overallScore },
-                    { label: 'Eye Contact',   val: Math.round(latest.eyeContact  ?? 0) },
-                    { label: 'Confidence',    val: Math.round(latest.confidence  ?? 0) },
-                    { label: 'Engagement',    val: Math.round(latest.engagement  ?? 0) },
+                    { label: 'Overall Score', val: latest.overallScore,            raw: latest.overallScore },
+                    { label: 'Eye Contact',   val: Math.round(latest.eyeContact  ?? 0), raw: latest.eyeContact },
+                    { label: 'Confidence',    val: Math.round(latest.confidence  ?? 0), raw: latest.confidence },
+                    { label: 'Engagement',    val: Math.round(latest.engagement  ?? 0), raw: latest.engagement },
                   ].map(m => (
                     <div key={m.label}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
                         <span style={{ fontSize: 13, color: '#555' }}>{m.label}</span>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: scoreColor(m.val) }}>{m.val}/10</span>
+                        {m.raw === null
+                          ? <span style={{ fontSize: 13, fontWeight: 600, color: '#aaa' }}>—</span>
+                          : <span style={{ fontSize: 13, fontWeight: 600, color: scoreColor(m.val) }}>{m.val}/10</span>
+                        }
                       </div>
                       <div style={{ height: 6, background: '#F3F4F6', borderRadius: 99 }}>
-                        <div style={{ height: '100%', width: `${(m.val / 10) * 100}%`, background: scoreColor(m.val), borderRadius: 99, transition: 'width 0.5s ease' }} />
+                        <div style={{ height: '100%', width: m.raw === null ? '0%' : `${(m.val / 10) * 100}%`, background: m.raw === null ? '#E5E5E5' : scoreColor(m.val), borderRadius: 99, transition: 'width 0.5s ease' }} />
                       </div>
                     </div>
                   ))}
