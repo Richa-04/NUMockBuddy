@@ -69,24 +69,6 @@ function Calendar({ markedSet, selectedDate, onSelect, pickAny=false }) {
   );
 }
 
-// ── Nav ───────────────────────────────────────────────────────────────────────
-function Nav() {
-  return (
-    <div style={{background:"white",borderBottom:"1px solid #eee",padding:"0 40px",display:"flex",alignItems:"center",justifyContent:"space-between",height:64,position:"sticky",top:0,zIndex:100}}>
-      <div style={{display:"flex",alignItems:"center",gap:10}}>
-        <div style={{background:"#c8102e",borderRadius:8,width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:"white",fontSize:18}}>M</div>
-        <div><div style={{fontWeight:700,fontSize:15,lineHeight:1.2,color:"#111"}}>MockMate</div><div style={{fontSize:11,color:"#888"}}>Northeastern University</div></div>
-      </div>
-      <div style={{display:"flex",gap:32}}>
-        {["Practice","Volunteers","Resume","Dashboard"].map(p=>(
-          <span key={p} style={{color:p==="Volunteers"?"#111":"#555",cursor:"pointer",fontSize:14,fontWeight:p==="Volunteers"?600:400}}>{p}</span>
-        ))}
-      </div>
-      <button style={{background:"#c8102e",color:"white",border:"none",borderRadius:24,padding:"10px 22px",fontWeight:700,fontSize:14,cursor:"pointer"}}>Sign in with NUid</button>
-    </div>
-  );
-}
-
 // ── Volunteer List ────────────────────────────────────────────────────────────
 function VolunteerList({ volunteers, setPage, setSelected }) {
   const [filter,setFilter]=useState("All");
@@ -444,7 +426,6 @@ export default function App() {
 
   return (
     <div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",minHeight:"100vh"}}>
-      <Nav/>
       {page==="list"   &&<VolunteerList volunteers={volunteers} setPage={setPage} setSelected={setSelected}/>}
       {page==="signup" &&<VolunteerSignup setPage={setPage} onAdd={handleAdd}/>}
       {page==="book"   &&curVol&&<BookingPage volunteer={curVol} setPage={setPage} onBook={handleBook}/>}
