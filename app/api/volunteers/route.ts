@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
         ...(availability && { availability: { equals: availability } }),
         ...(skill        && { skills:        { contains: skill,      mode: "insensitive" } }),
       },
+      include: { availabilitySlots: true },
       orderBy: { createdAt: "desc" },
     });
 
@@ -28,14 +29,31 @@ export async function GET(req: NextRequest) {
 // POST /api/volunteers  ← "Become a volunteer" button
 export async function POST(req: NextRequest) {
   try {
-    const { name, degree, company, role, bio, skills, availability } = await req.json();
+    const body = await req.json();
+    const { name, email, degree, company, role, bio, skills, availability, slots } = body;
 
     if (!name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
     const volunteer = await prisma.volunteer.create({
-      data: { name, degree, company, role, bio, skills, availability: availability ?? "available" },
+      data: {
+        name,
+        email,
+        degree,
+        company,
+        role,
+        bio,
+        skills: Array.isArray(skills) ? skills.join(",") : skills,
+        availability: availability ?? "available",
+        availabilitySlots: {
+          create: (slots || []).map((s: any) => ({
+            day: s.day,
+            startTime: s.startTime,
+            endTime: s.endTime,
+          })),
+        },
+      },
     });
 
     return NextResponse.json(volunteer, { status: 201 });
