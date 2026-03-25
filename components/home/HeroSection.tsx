@@ -47,7 +47,7 @@ export default function HeroSection() {
           <div className="animate-fade-up animate-delay-1" style={{ marginBottom: 24 }}>
             <Badge variant="red">
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-red)', display: 'inline-block', marginRight: 6, animation: 'pulse-dot 1.5s ease-in-out infinite' }} />
-              Built for Northeastern Seattle · MSIS &amp; MSCS
+              Built for Northeastern Students and Alumni
             </Badge>
           </div>
 
@@ -64,7 +64,7 @@ export default function HeroSection() {
               marginBottom: 28,
             }}
           >
-            Ace your co-op interview{' '}
+            Ace your interviews{' '}
             <span style={{ color: 'var(--color-red)', fontStyle: 'italic' }}>with AI</span>{' '}
             on your side.
           </h1>
@@ -80,7 +80,7 @@ export default function HeroSection() {
               marginBottom: 40,
             }}
           >
-            MockMate gives you realistic interview questions based on actual company patterns,
+            NUMockBuddy gives you realistic interview questions based on actual company patterns,
             instant feedback from 6 AI expert reviewers, and direct access to NU students
             who've already landed your dream co-op.
           </p>
@@ -166,19 +166,34 @@ export default function HeroSection() {
           <p style={{ fontSize: 12, color: 'var(--color-gray-400)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 500, marginBottom: 16 }}>
             Interview patterns from companies that hire NU students
           </p>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             {COMPANIES.map(c => (
-              <span key={c} style={{
-                padding: '6px 16px',
-                borderRadius: 'var(--radius-full)',
-                border: '1px solid var(--color-gray-200)',
-                fontSize: 13,
-                fontWeight: 500,
-                color: 'var(--color-gray-600)',
-                background: '#fff',
-              }}>
+              <Link key={c} href="/companies"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: 'var(--color-gray-600)',
+                  textDecoration: 'none',
+                  padding: '7px 16px',
+                  borderRadius: '999px',
+                  border: '1.5px solid var(--color-gray-200)',
+                  background: '#fff',
+                  transition: 'all 0.15s ease',
+                  display: 'inline-block',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'var(--color-red)'
+                  e.currentTarget.style.color = '#fff'
+                  e.currentTarget.style.borderColor = 'var(--color-red)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = '#fff'
+                  e.currentTarget.style.color = 'var(--color-gray-600)'
+                  e.currentTarget.style.borderColor = 'var(--color-gray-200)'
+                }}
+              >
                 {c}
-              </span>
+              </Link>
             ))}
           </div>
         </div>

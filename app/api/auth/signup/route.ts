@@ -30,7 +30,15 @@ export async function POST(req: NextRequest) {
       data: { nuid, fullName, email, program, gradYear, passwordHash },
     })
 
-    return NextResponse.json({ success: true, userId: user.id })
+    const response = NextResponse.json({ success: true, userId: user.id })
+response.cookies.set('nuid', user.nuid, {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  maxAge: 60 * 60 * 24 * 7,
+  path: '/',
+})
+return response
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Signup failed.' }, { status: 500 })

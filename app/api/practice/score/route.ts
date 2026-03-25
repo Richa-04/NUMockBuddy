@@ -26,13 +26,10 @@ const DEFAULT_FEEDBACK = {
   summary:      'No answers were provided for this session.',
 }
 
-
 function extractText(msg: Anthropic.Message): string {
   return (msg.content[0] as { type: 'text'; text: string }).text
 }
 
-// Escape literal newlines/tabs inside JSON string values using a state machine.
-// Regex alternatives tend to corrupt already-valid escape sequences.
 function fixLiteralNewlines(text: string): string {
   let out = ''
   let inString = false
@@ -58,23 +55,18 @@ function fixLiteralNewlines(text: string): string {
 }
 
 function parseJSON<T>(text: string): T {
-  // Only strip code fences at the very start/end of the response.
-  // A global replace would corrupt code inside JSON string values.
   const cleaned = text
     .replace(/^```(?:json)?\r?\n?/, '')
     .replace(/\r?\n?```$/, '')
     .trim()
 
-  // Attempt 1: direct parse
   try { return JSON.parse(cleaned) } catch { /* fall through */ }
 
-  // Attempt 2: model may have added preamble text — pull out the first JSON array/object
   const jsonMatch = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/)
   if (jsonMatch) {
     try { return JSON.parse(jsonMatch[1]) } catch { /* fall through */ }
   }
 
-  // Attempt 3: fix literal newlines/tabs inside string values (code answers)
   const src = jsonMatch?.[1] ?? cleaned
   const fixed = fixLiteralNewlines(src)
   try { return JSON.parse(fixed) } catch (e) {
@@ -82,8 +74,6 @@ function parseJSON<T>(text: string): T {
     throw e
   }
 }
-
-// ─── Call 1: scores only (kept tiny so it never truncates) ────────────────────
 
 interface ScoresAndFeedback {
   experts: Array<{ name: string; score: number; feedback: string }>
@@ -125,8 +115,6 @@ A: ${JSON.stringify(answers)}`
   return parseJSON<ScoresAndFeedback>(extractText(msg))
 }
 
-// ─── Call 2: model answers only ───────────────────────────────────────────────
-
 type ModelAnswer = { question: string; language: string; answer: string }
 
 async function callModelAnswers(
@@ -152,7 +140,6 @@ async function callModelAnswers(
     instruction = 'Write a STAR-format answer (Situation, Task, Action, Result). Plain text. Max 40 words. No code.'
     exampleAnswer = '<STAR format, max 40 words>'
   } else {
-    // System Design
     lang = 'text'
     instruction = `Write a structured answer with exactly these four sections. Use "**Section:**" as header. Bullet points only. Max 50 words total. CRITICAL: embedded in JSON — use \\n for newlines, NO literal newline characters.`
     exampleAnswer = `**Requirements:**\\n- 10M req/day, low latency\\n\\n**Architecture:**\\nClient → LB → API → Cache → DB\\n\\n**Key Components:**\\n- Cache: Redis\\n- DB: sharded PostgreSQL\\n\\n**Trade-offs:**\\n- Availability over consistency`
@@ -176,14 +163,12 @@ ${qList}`
     return parseJSON<ModelAnswer[]>(extractText(msg))
   }
 
-  // Attempt 1: full prompt
   try {
     return await callOnce(instruction, exampleAnswer)
   } catch {
     console.warn('callModelAnswers: first attempt failed, retrying with shorter prompt')
   }
 
-  // Attempt 2: stripped-down fallback prompt
   const shortInstruction = isTechnical
     ? `Write a ${selectedLanguage} solution. Max 8 lines. No comments. Use \\n for newlines.`
     : 'One sentence answer per question. Plain text only.'
@@ -199,9 +184,12 @@ ${qList}`
   }
 }
 
-// ─── POST handler ─────────────────────────────────────────────────────────────
-
 export async function POST(request: Request) {
+  // ── Read nuid from cookie so session is linked to logged-in user ──
+  const cookieHeader = request.headers.get('cookie') ?? ''
+  const nuidMatch = cookieHeader.match(/(?:^|;\s*)nuid=([^;]+)/)
+  const nuid = nuidMatch ? decodeURIComponent(nuidMatch[1]) : null
+
   const {
     questions,
     answers,
@@ -218,7 +206,6 @@ export async function POST(request: Request) {
 
   const hasAnswers = Array.isArray(answers) && answers.some((a: string) => a?.trim())
 
-  // Run both calls in parallel; parse each independently so one failure doesn't kill the other
   const [scoresResult, modelAnswersResult] = await Promise.all([
     hasAnswers
       ? callScores(questions, answers, totalFillerCount, role).catch(err => {
@@ -272,10 +259,10 @@ export async function POST(request: Request) {
     overallScore >= 5 ? 'Good'       :
     overallScore >= 3 ? 'Needs Work' : 'Incomplete'
 
-  // Persist session to DB — non-blocking, never crashes the response
+  // ── Save session with userId from cookie ──
   prisma.practiceSession.create({
     data: {
-      userId:        null,
+      userId:        nuid,
       company,
       role,
       interviewType,
@@ -291,7 +278,7 @@ export async function POST(request: Request) {
       engagement:    null,
     },
   })
-    .then(savedSession => console.log('PracticeSession saved:', savedSession.id))
+    .then(savedSession => console.log('PracticeSession saved:', savedSession.id, 'for user:', nuid))
     .catch(err => console.error('PracticeSession save failed:', err))
 
   return Response.json({

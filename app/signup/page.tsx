@@ -78,6 +78,8 @@ export default function SignupPage() {
     <div className="auth-page">
       {/* Left panel */}
       <div className="auth-left">
+        <div className="auth-left-photo" />
+        <div className="auth-left-overlay" />
         <div className="auth-left-inner">
           <div className="auth-brand">
             <div className="auth-logo-mark">N</div>
@@ -329,17 +331,52 @@ export default function SignupPage() {
           display: flex;
           font-family: var(--font-body);
         }
+
+        /* LEFT PANEL */
         .auth-left {
           width: 44%;
-          background: var(--color-red);
           position: relative;
           overflow: hidden;
           display: flex;
           align-items: stretch;
         }
+        .auth-left-photo {
+          position: absolute;
+          inset: 0;
+          background: url('/husky_park.png') center center / cover no-repeat;
+          z-index: 0;
+        }
+        .auth-left-overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(200, 16, 46, 0.82);
+          z-index: 1;
+          transition: opacity 0.5s ease;
+        }
+        .auth-left:hover .auth-left-overlay {
+          opacity: 0;
+        }
+        .auth-left:hover .auth-headline,
+        .auth-left:hover .auth-brand-name,
+        .auth-left:hover .auth-step-title,
+        .auth-left:hover .auth-subtext,
+        .auth-left:hover .auth-step-desc {
+          color: #000;
+          transition: color 0.5s ease;
+        }
+        .auth-left:hover .auth-logo-mark {
+          background: #000;
+          color: #fff;
+          transition: all 0.5s ease;
+        }
+        .auth-left:hover .auth-step-dot {
+          background: #000;
+          color: #fff;
+          transition: all 0.5s ease;
+        }
         .auth-left-inner {
           position: relative;
-          z-index: 2;
+          z-index: 3;
           padding: 48px 52px;
           display: flex;
           flex-direction: column;
@@ -370,6 +407,7 @@ export default function SignupPage() {
           font-size: 20px;
           font-weight: 600;
           letter-spacing: -0.3px;
+          transition: color 0.5s ease;
         }
         .auth-left-content {
           flex: 1;
@@ -385,6 +423,7 @@ export default function SignupPage() {
           line-height: 1.1;
           margin-bottom: 20px;
           letter-spacing: -0.5px;
+          transition: color 0.5s ease;
         }
         .auth-headline em { font-style: italic; opacity: 0.85; }
         .auth-subtext {
@@ -393,6 +432,7 @@ export default function SignupPage() {
           line-height: 1.7;
           max-width: 340px;
           margin-bottom: 48px;
+          transition: color 0.5s ease;
         }
         .auth-steps-preview {
           display: flex;
@@ -428,10 +468,12 @@ export default function SignupPage() {
           color: white;
           font-size: 14px;
           font-weight: 600;
+          transition: color 0.5s ease;
         }
         .auth-step-desc {
           color: rgba(255,255,255,0.6);
           font-size: 12px;
+          transition: color 0.5s ease;
         }
         .auth-step-line {
           width: 1px;
@@ -447,7 +489,7 @@ export default function SignupPage() {
           background: rgba(255,255,255,0.06);
           bottom: -180px;
           right: -140px;
-          z-index: 1;
+          z-index: 2;
         }
         .auth-left-bg-circle2 {
           position: absolute;
@@ -457,8 +499,10 @@ export default function SignupPage() {
           background: rgba(255,255,255,0.04);
           top: -80px;
           right: 40px;
-          z-index: 1;
+          z-index: 2;
         }
+
+        /* RIGHT PANEL */
         .auth-right {
           flex: 1;
           display: flex;

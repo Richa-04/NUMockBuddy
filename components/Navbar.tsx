@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 const NAV_LINKS = [
   { href: '/practice', label: 'Practice' },
@@ -13,6 +13,21 @@ const NAV_LINKS = [
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(false)
+  const router = useRouter()
+
+  useEffect(() => {
+  fetch('/api/auth/me')
+    .then(res => res.json())
+    .then(data => setLoggedIn(!!data.loggedIn))
+    .catch(() => setLoggedIn(false))
+}, [])
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    setLoggedIn(false)
+    router.push('/')
+  }
 
   return (
     <header style={{
@@ -83,22 +98,49 @@ export default function Navbar() {
 
         {/* CTA */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Link
-            href="/login"
-            style={{
-              padding: '8px 20px',
-              borderRadius: 'var(--radius-full)',
-              fontSize: 14,
-              fontWeight: 600,
-              background: 'var(--color-red)',
-              color: '#fff',
-              textDecoration: 'none',
-              boxShadow: 'var(--shadow-red)',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            Sign in with NUid
-          </Link>
+          {loggedIn ? (
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: '8px 20px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: 14,
+                fontWeight: 600,
+                background: 'transparent',
+                color: 'var(--color-red)',
+                border: '1.5px solid var(--color-red)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget.style.background = 'var(--color-red)')
+                ;(e.currentTarget.style.color = '#fff')
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget.style.background = 'transparent')
+                ;(e.currentTarget.style.color = 'var(--color-red)')
+              }}
+            >
+              Log out
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              style={{
+                padding: '8px 20px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: 14,
+                fontWeight: 600,
+                background: 'var(--color-red)',
+                color: '#fff',
+                textDecoration: 'none',
+                boxShadow: 'var(--shadow-red)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              Sign in with NUid
+            </Link>
+          )}
 
           {/* Mobile hamburger */}
           <button
@@ -155,6 +197,24 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
+          {loggedIn && (
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 15,
+                fontWeight: 500,
+                color: 'var(--color-red)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              Log out
+            </button>
+          )}
         </div>
       )}
 

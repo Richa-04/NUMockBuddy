@@ -23,7 +23,7 @@ export default function CTASection() {
 
       <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center', position: 'relative' }}>
         <Badge style={{ marginBottom: 28, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.12)' }}>
-          Northeastern Seattle · MSIS &amp; MSCS
+          Northeastern Students & Alumni
         </Badge>
 
         <h2 style={{
@@ -40,7 +40,7 @@ export default function CTASection() {
         </h2>
 
         <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, marginBottom: 44, maxWidth: 500, margin: '0 auto 44px' }}>
-          Join Northeastern Seattle students who are using MockMate to close the gap between where they are and where they want to be.
+          Join Northeastern students who are using NUMockBuddy to close the gap between where they are and where they want to be.
         </p>
 
         <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -88,7 +88,7 @@ export default function CTASection() {
 
         {/* Trust line */}
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', marginTop: 36 }}>
-          Free for all Northeastern Seattle students. No credit card.
+          Free for all Northeastern students. No credit card.
         </p>
       </div>
     </section>
