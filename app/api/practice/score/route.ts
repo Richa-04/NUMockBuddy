@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
