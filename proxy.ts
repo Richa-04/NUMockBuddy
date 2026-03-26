@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const PROTECTED_ROUTES = ['/dashboard', '/practice', '/volunteers', '/resume', '/companies']
+const PROTECTED_ROUTES = ['/dashboard', '/practice', '/volunteers', '/resume', '/resume-ai', '/companies']
 
 export function proxy(req: NextRequest) {
   const nuid = req.cookies.get('nuid')?.value
@@ -24,5 +24,5 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/practice/:path*', '/volunteers/:path*', '/resume/:path*', '/companies/:path*', '/login', '/signup'],
+  matcher: ['/dashboard/:path*', '/practice/:path*', '/volunteers/:path*', '/resume/:path*', '/resume-ai/:path*', '/companies/:path*', '/login', '/signup'],
 }
