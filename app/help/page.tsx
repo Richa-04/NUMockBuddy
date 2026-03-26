@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -60,7 +60,7 @@ function ArticleBody({ article }: { article: Article }) {
   );
 }
 
-export default function HelpPage() {
+function HelpContent() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Article | null>(null);
@@ -187,5 +187,13 @@ export default function HelpPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function HelpPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HelpContent />
+    </Suspense>
   );
 }
