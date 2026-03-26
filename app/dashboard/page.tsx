@@ -244,10 +244,9 @@ export default function DashboardPage() {
               <h2 style={{ fontSize: 16, fontWeight: 600, color: '#111', marginBottom: 20 }}>Focus Areas</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {[
-                  {  title: 'Reduce filler words',        desc: sessions.length > 0 ? `Avg ${avgFillers} per session — aim for under 5` : 'Start a session to track filler words', color: '#fef2f2', border: '#fecaca' },
-                  {  title: 'Strengthen technical skills', desc: 'Practice coding problems daily on LeetCode',  color: '#eff6ff', border: '#bfdbfe' },
-                  {  title: 'Use STAR format',             desc: 'Structure behavioral answers clearly',         color: '#f0fdf4', border: '#bbf7d0' },
-                  // icon: '📢',
+                  {  title: 'Reduce filler words',        desc: sessions.length > 0 ? `Avg ${avgFillers} per session — aim for under 5` : 'Start a session to track filler words', color: '#fef2f2', border: '#fecaca', icon: '📢' },
+                  {  title: 'Strengthen technical skills', desc: 'Practice coding problems daily on LeetCode',  color: '#eff6ff', border: '#bfdbfe', icon: '💻' },
+                  {  title: 'Use STAR format',             desc: 'Structure behavioral answers clearly',         color: '#f0fdf4', border: '#bbf7d0', icon: '⭐' },
                 ].map(tip => (
                   <div key={tip.title} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', background: tip.color, border: `1px solid ${tip.border}`, borderRadius: 10 }}>
                     <span style={{ fontSize: 18, flexShrink: 0 }}>{tip.icon}</span>
