@@ -249,7 +249,7 @@ export default function ChatWidget() {
           )}
         </div>
       )}
-      <button onClick={toggleWidget} aria-label="Open chat"
+      <button onClick={toggleWidget} aria-label="Open chat" data-chat-widget-trigger="true"
         style={{ position:"fixed", bottom:24, right:24, zIndex:9999, width:52, height:52, borderRadius:"50%", background:RED, border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 24px rgba(200,16,46,0.45)", transition:"transform 160ms", animation:"wPulse 2.4s ease-in-out infinite" }}
         onMouseEnter={e => { const b=e.currentTarget as HTMLButtonElement; b.style.transform="scale(1.1)"; b.style.animation="none"; }}
         onMouseLeave={e => { const b=e.currentTarget as HTMLButtonElement; b.style.transform="scale(1)"; b.style.animation="wPulse 2.4s ease-in-out infinite"; }}>
