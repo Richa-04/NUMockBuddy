@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Button from '@/components/ui/Button'
@@ -330,7 +330,7 @@ function WhiteboardCanvas({ canvasRef }: { canvasRef: { current: HTMLCanvasEleme
   )
 }
 
-export default function InterviewSessionPage() {
+function InterviewSessionContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -1480,5 +1480,13 @@ export default function InterviewSessionPage() {
         </div>
       </div>
     </section>
+  )
+}
+
+export default function InterviewSessionPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <InterviewSessionContent />
+    </Suspense>
   )
 }

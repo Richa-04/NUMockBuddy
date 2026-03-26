@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 
-export default function InterviewLobbyPage() {
+function InterviewLobbyContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -445,5 +445,13 @@ export default function InterviewLobbyPage() {
         </div>
       </div>
     </section>
+  )
+}
+
+export default function InterviewLobbyPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <InterviewLobbyContent />
+    </Suspense>
   )
 }
