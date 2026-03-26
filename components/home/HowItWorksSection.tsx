@@ -33,7 +33,7 @@ export default function HowItWorksSection() {
       padding: 'var(--space-3xl) var(--space-lg)',
       background: '#fff',
     }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ maxWidth: 1200, margin: '0px auto 30px auto' }}>
         {/* Header */}
         <div style={{ marginBottom: 60 }}>
           <Badge variant="default" style={{ marginBottom: 20 }}>

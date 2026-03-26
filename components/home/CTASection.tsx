@@ -62,7 +62,7 @@ export default function CTASection() {
               letterSpacing: '-0.2px',
             }}
           >
-            Sign in with NUid
+            Sign in
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>

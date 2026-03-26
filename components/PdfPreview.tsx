@@ -18,6 +18,7 @@ export default function PdfPreview({ url, fileName, fileSize, onReplace, onFileC
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   const renderingRef = useRef(false);
   const pendingRef = useRef<{ page: number; scale: number } | null>(null);
 
@@ -32,7 +33,7 @@ export default function PdfPreview({ url, fileName, fileSize, onReplace, onFileC
 
     try {
       const pdfjsLib = await import("pdfjs-dist");
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
       const pdf = await pdfjsLib.getDocument(url).promise;
       setPageCount(pdf.numPages);
@@ -54,6 +55,7 @@ export default function PdfPreview({ url, fileName, fileSize, onReplace, onFileC
       setLoading(false);
     } catch (e) {
       console.error("PDF render failed:", e);
+      setErrorMsg(e instanceof Error ? e.message : String(e));
       setError(true);
       setLoading(false);
     } finally {
@@ -106,8 +108,9 @@ export default function PdfPreview({ url, fileName, fileSize, onReplace, onFileC
 
       <div style={{ background:"#e5e7eb", padding:"20px 16px", display:"flex", justifyContent:"center", overflowY:"auto", maxHeight:800, minHeight:300 }}>
         {error ? (
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:40, color:"#888", fontSize:13 }}>
-            Preview unavailable — file is ready for analysis.
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:40, color:"#888", fontSize:13, gap:8 }}>
+            <span>Preview unavailable — file is ready for analysis.</span>
+            {errorMsg && <span style={{ fontSize:11, color:"#f87171", maxWidth:320, textAlign:"center", wordBreak:"break-word" }}>{errorMsg}</span>}
           </div>
         ) : (
           <div style={{ position:"relative", background:"#fff", boxShadow:"0 4px 20px rgba(0,0,0,0.15)", display:"inline-block" }}>
