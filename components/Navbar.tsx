@@ -272,7 +272,7 @@ export default function Navbar() {
                 transition: 'all 0.15s ease',
               }}
             >
-              Sign in with NUID
+              Sign In
             </Link>
           )}
 
