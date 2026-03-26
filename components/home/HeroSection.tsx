@@ -10,7 +10,7 @@ export default function HeroSection() {
     <section style={{
       position: 'relative',
       overflow: 'hidden',
-      paddingTop: 'var(--space-3xl)',
+      paddingTop: '100px',
       paddingBottom: 'var(--space-3xl)',
       paddingLeft: 'var(--space-lg)',
       paddingRight: 'var(--space-lg)',

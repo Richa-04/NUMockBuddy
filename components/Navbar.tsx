@@ -9,6 +9,8 @@ const NAV_LINKS = [
   { href: '/volunteers', label: 'Volunteers' },
   { href: '/resume', label: 'Resume' },
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/help', label: 'Help' },
+  { href: '/feedback', label: 'Feedback' },
 ]
 
 interface UserInfo {
@@ -270,7 +272,7 @@ export default function Navbar() {
                 transition: 'all 0.15s ease',
               }}
             >
-              Sign in with NUid
+              Sign in with NUID
             </Link>
           )}
 
