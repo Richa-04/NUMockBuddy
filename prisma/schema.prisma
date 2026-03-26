@@ -37,6 +37,7 @@ model ChatMessage {
 }
 
 model Volunteer {
+<<<<<<< HEAD
   id               String             @id @default(cuid())
   name             String
   degree           String?
@@ -49,12 +50,42 @@ model Volunteer {
   email            String?
   AvailabilitySlot AvailabilitySlot[]
   sessions         Session[]
+=======
+  id                String             @id @default(cuid())
+  name              String
+  email             String?
+  degree            String?
+  company           String?
+  role              String?
+  bio               String?
+  skills            String?
+  availability      String             @default("available")
+  createdAt         DateTime           @default(now())
+  sessions          Session[]
+  availabilitySlots AvailabilitySlot[]
+}
+
+model AvailabilitySlot {
+  id          String    @id @default(cuid())
+  volunteerId String
+  volunteer   Volunteer @relation(fields: [volunteerId], references: [id])
+  day         String
+  startTime   String
+  endTime     String
+  booked      Boolean   @default(false)
+>>>>>>> 4935130314ba228b7e6f85af572c065e53f84a86
 }
 
 model Session {
   id          String    @id @default(cuid())
   volunteerId String
+<<<<<<< HEAD
   requester   String
+=======
+  volunteer   Volunteer @relation(fields: [volunteerId], references: [id])
+  requester   String
+  slotId      String?
+>>>>>>> 4935130314ba228b7e6f85af572c065e53f84a86
   status      String    @default("pending")
   notes       String?
   createdAt   DateTime  @default(now())
@@ -70,6 +101,17 @@ model AvailabilitySlot {
   endTime     String
   booked      Boolean   @default(false)
   Volunteer   Volunteer @relation(fields: [volunteerId], references: [id])
+}
+
+enum ScanType {
+  JD_MATCH
+  ROLE_RATE
+  ATS
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
 }
 
 enum ScanType {
@@ -112,3 +154,15 @@ model PracticeSession {
   engagement    Float?
   createdAt     DateTime @default(now())
 }
+<<<<<<< HEAD
+=======
+
+model Feedback {
+  id        String   @id @default(cuid())
+  type      String
+  rating    Int?
+  text      String
+  extra     Json?
+  createdAt DateTime @default(now())
+}
+>>>>>>> 4935130314ba228b7e6f85af572c065e53f84a86

@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '@/lib/prisma'
+import { NextRequest } from 'next/server'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -184,6 +185,7 @@ ${qList}`
   }
 }
 
+<<<<<<< HEAD
 export async function POST(request: Request) {
   // ── Read identifier from cookie so session is linked to logged-in user ──
   const cookieHeader = request.headers.get('cookie') ?? ''
@@ -197,6 +199,15 @@ export async function POST(request: Request) {
   if (!nuid && emailFromCookie) {
     const found = await prisma.user.findUnique({ where: { email: emailFromCookie }, select: { nuid: true } })
     nuid = found?.nuid ?? null
+=======
+export async function POST(request: NextRequest) {
+  const email = request.cookies.get('email')?.value
+  const nuid  = request.cookies.get('nuid')?.value
+  let userId: string | null = nuid ?? null
+  if (email) {
+    const user = await prisma.user.findUnique({ where: { email }, select: { nuid: true } })
+    userId = user?.nuid ?? nuid ?? null
+>>>>>>> 4935130314ba228b7e6f85af572c065e53f84a86
   }
 
   const {
@@ -211,6 +222,7 @@ export async function POST(request: Request) {
     answeredCount = 0,
     skippedCount = 0,
     totalRepeated = 0,
+    saveToDB = true,
   } = await request.json()
 
   const hasAnswers = Array.isArray(answers) && answers.some((a: string) => a?.trim())
@@ -228,6 +240,79 @@ export async function POST(request: Request) {
     }),
   ])
 
+  // ── Compute scores (use defaults when no answers provided) ──────────────────
+  const expertScores = hasAnswers && scoresResult
+    ? scoresResult.experts.map(e => {
+        const config = EXPERT_CONFIG.find(c => c.name === e.name)
+        return {
+          name:     e.name,
+          score:    e.score,
+          feedback: e.feedback,
+          accent:   config?.accent ?? '#666',
+          bg:       config?.bg ?? '#f9f9f9',
+        }
+      })
+    : DEFAULT_EXPERT_SCORES
+
+  const overallScore = hasAnswers && scoresResult
+    ? Math.round(expertScores.reduce((sum, e) => sum + e.score, 0) / expertScores.length)
+    : 0
+
+  const verdict: string =
+    overallScore >= 9 ? 'Strong'     :
+    overallScore >= 7 ? 'Very Good'  :
+    overallScore >= 5 ? 'Good'       :
+    overallScore >= 3 ? 'Needs Work' : 'Incomplete'
+
+  // ── Save session and capture ID so client can update video scores later ──
+  // Always save regardless of whether answers were provided.
+  // saveToDB=false means StrictMode sent a duplicate request — skip.
+  // 3-second window is a backup dedup in case the client flag misfires.
+  let sessionId: string | null = null
+  if (saveToDB) {
+    try {
+      const existing = await prisma.practiceSession.findFirst({
+        where: {
+          userId:        userId,
+          company,
+          role,
+          interviewType,
+          createdAt:     { gte: new Date(Date.now() - 3_000) },
+        },
+        select: { id: true },
+      })
+      if (existing) {
+        console.log('PracticeSession save skipped (duplicate within 3s):', existing.id)
+        sessionId = existing.id
+      } else {
+        const saved = await prisma.practiceSession.create({
+          data: {
+            userId:        userId,
+            company,
+            role,
+            interviewType,
+            jobType,
+            overallScore,
+            verdict,
+            answeredCount,
+            skippedCount,
+            totalFillers:  totalFillerCount,
+            totalRepeated,
+            eyeContact:    null,
+            confidence:    null,
+            engagement:    null,
+          },
+        })
+        sessionId = saved.id
+        console.log('PracticeSession saved:', saved.id, 'for user:', userId)
+      }
+    } catch (err) {
+      console.error('PracticeSession save failed:', err)
+    }
+  } else {
+    console.log('PracticeSession save skipped (client dedup flag)')
+  }
+
   if (!hasAnswers) {
     return Response.json({
       overallScore: 0,
@@ -237,58 +322,16 @@ export async function POST(request: Request) {
       improvements: DEFAULT_FEEDBACK.improvements,
       summary:      DEFAULT_FEEDBACK.summary,
       modelAnswers: modelAnswersResult,
+      sessionId,
     })
   }
 
   if (!scoresResult) {
     return Response.json(
-      { error: 'Failed to score interview', modelAnswers: modelAnswersResult },
+      { error: 'Failed to score interview', modelAnswers: modelAnswersResult, sessionId },
       { status: 500 },
     )
   }
-
-  const expertScores = scoresResult.experts.map(e => {
-    const config = EXPERT_CONFIG.find(c => c.name === e.name)
-    return {
-      name:     e.name,
-      score:    e.score,
-      feedback: e.feedback,
-      accent:   config?.accent ?? '#666',
-      bg:       config?.bg ?? '#f9f9f9',
-    }
-  })
-
-  const overallScore = Math.round(
-    expertScores.reduce((sum, e) => sum + e.score, 0) / expertScores.length,
-  )
-
-  const verdict =
-    overallScore >= 9 ? 'Strong'     :
-    overallScore >= 7 ? 'Very Good'  :
-    overallScore >= 5 ? 'Good'       :
-    overallScore >= 3 ? 'Needs Work' : 'Incomplete'
-
-  // ── Save session with userId from cookie ──
-  prisma.practiceSession.create({
-    data: {
-      userId:        nuid,
-      company,
-      role,
-      interviewType,
-      jobType,
-      overallScore,
-      verdict,
-      answeredCount,
-      skippedCount,
-      totalFillers:  totalFillerCount,
-      totalRepeated,
-      eyeContact:    null,
-      confidence:    null,
-      engagement:    null,
-    },
-  })
-    .then(savedSession => console.log('PracticeSession saved:', savedSession.id, 'for user:', nuid))
-    .catch(err => console.error('PracticeSession save failed:', err))
 
   return Response.json({
     overallScore,
@@ -298,5 +341,6 @@ export async function POST(request: Request) {
     improvements: scoresResult.improvements,
     summary:      scoresResult.summary,
     modelAnswers: modelAnswersResult,
+    sessionId,
   })
 }

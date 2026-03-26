@@ -4,17 +4,19 @@ const PROTECTED_ROUTES = ['/dashboard', '/practice', '/volunteers', '/resume', '
 
 export function proxy(req: NextRequest) {
   const nuid = req.cookies.get('nuid')?.value
+  const email = req.cookies.get('email')?.value
+  const isLoggedIn = !!(nuid || email)
   const path = req.nextUrl.pathname
 
   const isProtected = PROTECTED_ROUTES.some(route => path.startsWith(route))
 
-  if (isProtected && !nuid) {
+  if (isProtected && !isLoggedIn) {
     const loginUrl = new URL('/login', req.url)
     loginUrl.searchParams.set('from', path)
     return NextResponse.redirect(loginUrl)
   }
 
-  if (nuid && (path === '/login' || path === '/signup')) {
+  if (isLoggedIn && (path === '/login' || path === '/signup')) {
     return NextResponse.redirect(new URL('/', req.url))
   }
 

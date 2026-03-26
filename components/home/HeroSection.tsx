@@ -10,7 +10,7 @@ export default function HeroSection() {
     <section style={{
       position: 'relative',
       overflow: 'hidden',
-      paddingTop: 'var(--space-3xl)',
+      paddingTop: '50px',
       paddingBottom: 'var(--space-3xl)',
       paddingLeft: 'var(--space-lg)',
       paddingRight: 'var(--space-lg)',
@@ -161,7 +161,7 @@ export default function HeroSection() {
         {/* Company logos strip */}
         <div
           className="animate-fade-up animate-delay-6"
-          style={{ marginTop: 64, overflow: 'hidden' }}
+          style={{ marginTop: 64, overflow: 'hidden', paddingBottom: '48px' }}
         >
           <p style={{ fontSize: 12, color: 'var(--color-gray-400)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 500, marginBottom: 16 }}>
             Interview patterns from companies that hire NU students

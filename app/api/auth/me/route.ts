@@ -19,6 +19,11 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     loggedIn: true,
-    user: { fullName: user.fullName, email: user.email, program: user.program },
+    user: {
+      fullName: user.fullName,
+      nuid: user.nuid,
+      email: user.email,
+      program: user.program,
+    },
   })
 }
