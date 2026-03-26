@@ -33,7 +33,12 @@ export default function HowItWorksSection() {
       padding: 'var(--space-3xl) var(--space-lg)',
       background: '#fff',
     }}>
-      <div style={{ maxWidth: 1200, margin: '0px auto 30px auto' }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .how-it-works-container { padding-left: 20px !important; padding-right: 20px !important; }
+        }
+      `}</style>
+      <div className="how-it-works-container" style={{ maxWidth: 1200, margin: '0px auto 30px auto' }}>
         {/* Header */}
         <div style={{ marginBottom: 60 }}>
           <Badge variant="default" style={{ marginBottom: 20 }}>

@@ -117,6 +117,13 @@ function InterviewLobbyContent() {
       background: '#fff',
       minHeight: '100vh',
     }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .lobby-two-col { grid-template-columns: 1fr !important; gap: 20px !important; }
+          .lobby-details-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .lobby-section { padding-top: 40px !important; padding-left: 16px !important; padding-right: 16px !important; }
+        }
+      `}</style>
       {/* Background grid */}
       <div style={{
         position: 'absolute',
@@ -221,7 +228,7 @@ function InterviewLobbyContent() {
           </div>
 
           {/* Middle section - Camera and Instructions */}
-          <div style={{
+          <div className="lobby-two-col" style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gap: 32,

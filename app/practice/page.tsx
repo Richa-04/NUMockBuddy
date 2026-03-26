@@ -83,7 +83,12 @@ export default function PracticePage() {
       }} />
 
       <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative' }}>
-        <div style={{ maxWidth: 780, margin: '0 auto' }}>
+        <style>{`
+          @media (max-width: 768px) {
+            .practice-inner { padding-left: 20px !important; padding-right: 20px !important; }
+          }
+        `}</style>
+        <div className="practice-inner" style={{ maxWidth: 780, margin: '0 auto' }}>
           {/* Progress bar */}
           <div style={{ marginBottom: 48 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>

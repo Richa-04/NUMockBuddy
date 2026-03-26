@@ -80,22 +80,32 @@ function VolunteerList({ volunteers, setPage, setSelected }) {
     return v.company===filter;
   });
   return (
-    <div style={{...gridBg,minHeight:"calc(100vh - 64px)",padding:"40px 48px"}}>
+    <div style={{...gridBg,minHeight:"calc(100vh - 64px)",padding:"40px 48px"}} className="vol-outer">
+      <style>{`
+        @media (max-width: 768px) {
+          .vol-outer        { padding: 24px 16px !important; }
+          .vol-header       { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+          .vol-header > button { width: 100% !important; }
+          .vol-filter-row   { flex-wrap: wrap !important; }
+          .vol-filter-row input { min-width: 0 !important; width: 100% !important; margin-bottom: 4px; }
+          .vol-grid         { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
       <div style={{maxWidth:900,margin:"0 auto"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:28}}>
+        <div className="vol-header" style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:28}}>
           <div>
             <h2 style={{margin:0,fontSize:22,fontWeight:700,color:"#111"}}>Peer volunteers</h2>
             <p style={{margin:"6px 0 0",color:"#666",fontSize:14}}>Students who've done co-ops & internships and want to help</p>
           </div>
           <button onClick={()=>setPage("signup")} style={{background:"white",border:"1.5px solid #222",color:"#111",borderRadius:8,padding:"10px 20px",cursor:"pointer",fontWeight:600,fontSize:14}}>Become a volunteer</button>
         </div>
-        <div style={{display:"flex",gap:10,marginBottom:32,alignItems:"center"}}>
-          <input placeholder="Filter by company, role, or skill..." style={{flex:1,padding:"10px 16px",borderRadius:8,border:"1px solid #ddd",background:"white",fontSize:14,outline:"none"}}/>
+        <div className="vol-filter-row" style={{display:"flex",gap:10,marginBottom:32,alignItems:"center",flexWrap:"wrap"}}>
+          <input placeholder="Filter by company, role, or skill..." style={{flex:1,padding:"10px 16px",borderRadius:8,border:"1px solid #ddd",background:"white",fontSize:14,outline:"none",minWidth:180}}/>
           {filters.map(f=>(
             <button key={f} onClick={()=>setFilter(f)} style={{padding:"8px 18px",borderRadius:20,border:"1.5px solid "+(filter===f?"#111":"#ddd"),background:filter===f?"#111":"white",color:filter===f?"white":"#555",cursor:"pointer",fontWeight:filter===f?700:400,fontSize:13}}>{f}</button>
           ))}
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+        <div className="vol-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
           {filtered.map(v=>(
             <div key={v.id} style={{background:"white",borderRadius:12,padding:24,border:"1px solid #eee",boxShadow:"0 1px 4px rgba(0,0,0,.04)"}}>
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>

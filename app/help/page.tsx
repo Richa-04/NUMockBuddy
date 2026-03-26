@@ -83,9 +83,18 @@ function HelpContent() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f7f7f8", fontFamily: "system-ui, -apple-system, sans-serif" }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .help-hero         { padding: 32px 16px 28px !important; }
+          .help-body         { flex-direction: column !important; padding: 20px 16px 40px !important; }
+          .help-sidebar      { width: 100% !important; position: relative !important; top: auto !important; flex-shrink: unset !important; }
+          .help-sidebar-cats { display: flex !important; flex-wrap: wrap !important; gap: 4px !important; padding: 8px !important; }
+          .help-sidebar-cats button { width: auto !important; border-right: none !important; border-radius: 20px !important; padding: 6px 12px !important; }
+        }
+      `}</style>
 
       {/* Hero */}
-      <div style={{ background: `linear-gradient(135deg, ${RED} 0%, #8b0a1e 100%)`, padding: "48px 24px 40px" }}>
+      <div className="help-hero" style={{ background: `linear-gradient(135deg, ${RED} 0%, #8b0a1e 100%)`, padding: "48px 24px 40px" }}>
         <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
           <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 8, color: "rgba(255,255,255,0.7)", fontSize: 13, textDecoration: "none", marginBottom: 20 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
@@ -102,17 +111,19 @@ function HelpContent() {
       </div>
 
       {/* Body */}
-      <div style={{ maxWidth: 960, margin: "0 auto", padding: "32px 24px 64px", display: "flex", gap: 28, alignItems: "flex-start" }}>
+      <div className="help-body" style={{ maxWidth: 960, margin: "0 auto", padding: "32px 24px 64px", display: "flex", gap: 28, alignItems: "flex-start" }}>
 
         {/* Sidebar */}
-        <div style={{ width: 220, flexShrink: 0, background: "#fff", borderRadius: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", padding: "12px 0", position: "sticky", top: 24 }}>
+        <div className="help-sidebar" style={{ width: 220, flexShrink: 0, background: "#fff", borderRadius: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", padding: "12px 0", position: "sticky", top: 24 }}>
           <p style={{ margin: "0 0 6px", padding: "0 16px", fontSize: 11, fontWeight: 700, color: "#aaa", textTransform: "uppercase", letterSpacing: 0.8 }}>Categories</p>
+          <div className="help-sidebar-cats">
           {CATEGORIES.map(cat => (
             <button key={cat.id} onClick={() => { setActiveCategory(cat.id); setSelected(null); }}
               style={{ width: "100%", textAlign: "left", padding: "9px 16px", fontSize: 13.5, border: "none", background: activeCategory === cat.id ? "#fff5f5" : "none", color: activeCategory === cat.id ? RED : "#444", fontWeight: activeCategory === cat.id ? 600 : 400, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, borderRight: activeCategory === cat.id ? `3px solid ${RED}` : "3px solid transparent" }}>
               <span style={{ fontSize: 16 }}>{cat.icon}</span>{cat.label}
             </button>
           ))}
+          </div>
           <div style={{ margin: "16px 12px 4px", height: 1, background: "#f0f0f0" }} />
           <Link href="/feedback" style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", fontSize: 13.5, color: "#444", textDecoration: "none" }}>
             <span style={{ fontSize: 16 }}>📬</span>Submit Feedback

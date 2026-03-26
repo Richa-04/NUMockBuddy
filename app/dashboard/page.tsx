@@ -145,12 +145,24 @@ export default function DashboardPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#F7F6F3', fontFamily: 'var(--font-body)' }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 768px) {
+          .dash-header-wrap { padding: 20px 16px 0 !important; }
+          .dash-header-row  { flex-direction: column !important; }
+          .dash-stats-row   { justify-content: flex-start !important; gap: 10px !important; }
+          .dash-stat-box    { min-width: 70px !important; padding: 8px 12px !important; }
+          .dash-overview    { grid-template-columns: 1fr !important; }
+          .dash-session-row { flex-wrap: wrap !important; gap: 12px !important; }
+          .dash-mini-scores { display: none !important; }
+          .dash-body-pad    { padding: 20px 16px !important; }
+        }
+      `}</style>
 
       {/* Header */}
-      <div style={{ background: '#fff', borderBottom: '1px solid #EBEBEB', padding: '32px 40px 0' }}>
+      <div className="dash-header-wrap" style={{ background: '#fff', borderBottom: '1px solid #EBEBEB', padding: '32px 40px 0' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
+          <div className="dash-header-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
               <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-red)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 500, flexShrink: 0 }}>
                 {firstName[0]}
@@ -165,14 +177,14 @@ export default function DashboardPage() {
                 </p>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <div className="dash-stats-row" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               {[
                 { label: 'Avg Score',        value: sessions.length > 0 ? `${avgScore}/10`  : '—', color: sessions.length > 0 ? scoreColor(avgScore)  : '#aaa' },
                 { label: 'Sessions',         value: sessions.length,                                color: '#111' },
                 { label: 'Best Score',       value: sessions.length > 0 ? `${bestScore}/10` : '—', color: sessions.length > 0 ? scoreColor(bestScore) : '#aaa' },
                 { label: 'Avg Filler Words', value: sessions.length > 0 ? avgFillers         : '—', color: '#d97706' },
               ].map(stat => (
-                <div key={stat.label} style={{ background: '#F7F6F3', borderRadius: 12, padding: '10px 18px', textAlign: 'center', minWidth: 80 }}>
+                <div key={stat.label} className="dash-stat-box" style={{ background: '#F7F6F3', borderRadius: 12, padding: '10px 18px', textAlign: 'center', minWidth: 80 }}>
                   <div style={{ fontSize: 20, fontWeight: 700, color: stat.color, fontFamily: 'var(--font-display)' }}>{stat.value}</div>
                   <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{stat.label}</div>
                 </div>
@@ -189,11 +201,11 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 40px' }}>
+      <div className="dash-body-pad" style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 40px' }}>
 
         {/* OVERVIEW */}
         {activeTab === 'overview' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          <div className="dash-overview" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
             <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EBEBEB', padding: '24px', gridColumn: '1 / -1' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
                 <div>
@@ -278,7 +290,7 @@ export default function DashboardPage() {
                 <a href="/practice" style={{ background: 'var(--color-red)', color: '#fff', padding: '10px 24px', borderRadius: 99, textDecoration: 'none', fontSize: 14, fontWeight: 600 }}>Start Practicing →</a>
               </div>
             ) : filteredSessions.map(s => (
-              <div key={s.id} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EBEBEB', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 20, transition: 'box-shadow 0.2s' }}
+              <div key={s.id} className="dash-session-row" style={{ background: '#fff', borderRadius: 16, border: '1px solid #EBEBEB', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 20, transition: 'box-shadow 0.2s' }}
                 onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.06)')}
                 onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}
               >
@@ -303,7 +315,7 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div className="dash-mini-scores" style={{ display: 'flex', gap: 10 }}>
                   {[
                     { label: 'Score', val: s.overallScore },
                     { label: 'Eye',   val: Math.round(s.eyeContact  ?? 0) },

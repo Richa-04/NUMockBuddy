@@ -885,6 +885,14 @@ function InterviewSessionContent() {
       background: '#fff',
       minHeight: '100vh',
     }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .session-grid     { grid-template-columns: 1fr !important; }
+          .session-header   { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+          .session-section  { padding-left: 16px !important; padding-right: 16px !important; }
+          .session-timer    { align-self: flex-start !important; }
+        }
+      `}</style>
       {/* Background grid */}
       <div style={{
         position: 'absolute',
@@ -957,7 +965,7 @@ function InterviewSessionContent() {
         )}
 
         {/* Header */}
-        <div style={{
+        <div className="session-header" style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -987,7 +995,7 @@ function InterviewSessionContent() {
         </div>
 
         {/* Main content - 3 column layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 320px', gap: 24, marginBottom: 24 }}>
+        <div className="session-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 320px', gap: 24, marginBottom: 24 }}>
           {/* Left: Question panel */}
           <div style={{
             border: '1px solid var(--color-gray-200)',

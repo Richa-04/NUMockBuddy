@@ -54,6 +54,11 @@ const ICONS = [
 export default function FeaturesSection() {
   return (
     <section style={{ padding: '100px 24px', background: '#fff' }}>
+      <style>{`
+        @media (max-width: 1024px) { .features-grid { grid-template-columns: repeat(2, 1fr) !important; } }
+        @media (max-width: 600px)  { .features-grid { grid-template-columns: 1fr !important; padding: 60px 16px !important; } }
+        @media (max-width: 768px)  { .features-section { padding: 60px 16px !important; } }
+      `}</style>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
  
         {/* Header */}
@@ -86,7 +91,7 @@ export default function FeaturesSection() {
         </div>
  
         {/* Cards grid */}
-        <div style={{
+        <div className="features-grid" style={{
   display: 'grid',
   gridTemplateColumns: 'repeat(5, 1fr)',
   gap: 24,

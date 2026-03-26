@@ -16,6 +16,11 @@ export default function HeroSection() {
       paddingRight: 'var(--space-lg)',
       background: '#fff',
     }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .hero-content-container { padding-left: 20px !important; padding-right: 20px !important; }
+        }
+      `}</style>
       {/* Background grid */}
       <div style={{
         position: 'absolute',
@@ -41,7 +46,7 @@ export default function HeroSection() {
         pointerEvents: 'none',
       }} />
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative' }}>
+      <div className="hero-content-container" style={{ maxWidth: 1200, margin: '0 auto', position: 'relative' }}>
         <div style={{ maxWidth: 780 }}>
           {/* Eyebrow badge */}
           <div className="animate-fade-up animate-delay-1" style={{ marginBottom: 24 }}>

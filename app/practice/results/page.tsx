@@ -465,6 +465,15 @@ export default function ResultsPage() {
       background: '#fff',
       minHeight: '100vh',
     }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .results-section { padding-left: 16px !important; padding-right: 16px !important; }
+          .results-stats-row { flex-wrap: wrap !important; gap: 8px !important; font-size: 12px !important; }
+          .results-card { padding: 20px 16px !important; }
+          .results-action-btns { flex-direction: column !important; }
+          .results-action-btns > * { width: 100% !important; justify-content: center !important; }
+        }
+      `}</style>
       {/* Background grid */}
       <div style={{
         position: 'absolute', inset: 0,

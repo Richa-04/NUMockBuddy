@@ -596,17 +596,27 @@ export default function ResumeAIPage() {
 
   return (
     <div style={{ background: "#fff", minHeight: "100vh", fontFamily: "var(--font-body)" }}>
-
+      <style>{`
+        @media (max-width: 768px) {
+          .resume-hero       { padding: 32px 16px 28px !important; }
+          .resume-hero-inner { flex-direction: column !important; gap: 20px !important; }
+          .resume-body-pad   { padding: 24px 16px !important; }
+          .resume-two-col    { grid-template-columns: 1fr !important; display: flex !important; flex-direction: column !important; }
+          .resume-step-bar   { flex-wrap: wrap !important; gap: 8px !important; }
+          .resume-step-bar span { white-space: normal !important; }
+          .resume-tab-btns   { flex-wrap: wrap !important; }
+        }
+      `}</style>
 
       {/* Hero */}
-      <div style={{ position: "relative", overflow: "hidden", padding: "56px 32px 48px", borderBottom: "1px solid var(--color-gray-200)", background: "#fff" }}>
+      <div className="resume-hero" style={{ position: "relative", overflow: "hidden", padding: "56px 32px 48px", borderBottom: "1px solid var(--color-gray-200)", background: "#fff" }}>
         <div style={{
           position: "absolute", inset: 0,
           backgroundImage: "linear-gradient(var(--color-gray-200) 1px, transparent 1px), linear-gradient(90deg, var(--color-gray-200) 1px, transparent 1px)",
           backgroundSize: "40px 40px", opacity: 0.4, pointerEvents: "none",
         }} />
         <div style={{ position: "absolute", top: -80, right: "10%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(200,16,46,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 40 }}>
+        <div className="resume-hero-inner" style={{ maxWidth: 1200, margin: "0 auto", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 40 }}>
           {/* Left: text */}
           <div style={{ flex: "1 1 0", minWidth: 0 }}>
             <div style={{ marginBottom: 14 }}>
@@ -643,7 +653,7 @@ export default function ResumeAIPage() {
         `}</style>
       </div>
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 32px" }}>
+      <div className="resume-body-pad" style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 32px" }}>
 
         {/* ===== TAB 1: JD vs Resume ===== */}
         {activeTab === "jd" && (
@@ -699,7 +709,7 @@ export default function ResumeAIPage() {
               </div>
             )}
 
-            <div style={{ display: mode === "role" ? "flex" : "grid", gridTemplateColumns: "1fr 1fr", justifyContent: "center", gap: 20, marginBottom: 20, alignItems: "stretch" }}>
+            <div className={mode === "role" ? "" : "resume-two-col"} style={{ display: mode === "role" ? "flex" : "grid", gridTemplateColumns: "1fr 1fr", justifyContent: "center", gap: 20, marginBottom: 20, alignItems: "stretch" }}>
               {/* Resume */}
               <Card style={{ width: mode === "role" ? "min(600px, 100%)" : undefined, borderColor: "var(--color-red)", borderWidth: 2 }}>
                 <SectionLabel>Your Resume</SectionLabel>
