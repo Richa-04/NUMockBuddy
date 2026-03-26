@@ -260,20 +260,37 @@ export default function ResultsPage() {
     engagement:  { score: number; tip: string }
   } | null>(null)
   const [videoAnalysisLoading, setVideoAnalysisLoading] = useState(false)
-  const practiceSessionId = useRef<string | null>(null)
+  const [allSaved, setAllSaved] = useState(false)
+  const practiceSessionId  = useRef<string | null>(null)
   const pendingVideoScores = useRef<{ eyeContact: number; confidence: number; engagement: number } | null>(null)
+  const scoringDoneRef     = useRef(false)
+  const videoSaveDoneRef   = useRef(false)
+  const videoSaveFiredRef  = useRef(false)
+
+  function checkAllSaved() {
+    if (scoringDoneRef.current && videoSaveDoneRef.current) setAllSaved(true)
+  }
 
   // When both sessionId and video scores are available, persist video scores
   function maybeSaveVideoScores(sid: string | null, scores: typeof pendingVideoScores.current) {
     if (!sid || !scores) return
+    if (videoSaveFiredRef.current) return
+    videoSaveFiredRef.current = true
     fetch('/api/practice/update-session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId: sid, ...scores }),
-    }).catch(() => { /* silently skip if DB unavailable */ })
+    })
+      .catch(() => {})
+      .finally(() => { videoSaveDoneRef.current = true; checkAllSaved() })
   }
 
   useEffect(() => {
+    // Clear dedup flag at the very start of every results page load so a fresh
+    // session is always saved, even if the user navigated here without going
+    // through the session page (e.g. browser back from dashboard).
+    sessionStorage.removeItem('practiceSessionSaved')
+
     const controller = new AbortController()
 
     const questions = JSON.parse(sessionStorage.getItem('interviewQuestions') || '[]') as string[]
@@ -307,7 +324,9 @@ export default function ResultsPage() {
       })
         .then(res => res.json())
         .then(data => {
-          if (data.error) return
+          if (data.error) {
+            videoSaveDoneRef.current = true; checkAllSaved(); return
+          }
           setVideoAnalysis(data)
           const scores = {
             eyeContact:  data.eyeContact.score,
@@ -316,13 +335,18 @@ export default function ResultsPage() {
           }
           // Only save if at least one score > 0 (all-zero = no face detected, not worth persisting)
           const hasRealScores = scores.eyeContact > 0 || scores.confidence > 0 || scores.engagement > 0
-          if (!hasRealScores) return
+          if (!hasRealScores) {
+            videoSaveDoneRef.current = true; checkAllSaved(); return
+          }
           pendingVideoScores.current = scores
           // Save immediately if sessionId is already known; otherwise wait for score API
           maybeSaveVideoScores(practiceSessionId.current, scores)
         })
-        .catch(() => { /* silently skip if unavailable */ })
+        .catch(() => { videoSaveDoneRef.current = true; checkAllSaved() })
         .finally(() => setVideoAnalysisLoading(false))
+    } else {
+      // No video frames — nothing to save, video side is immediately done
+      videoSaveDoneRef.current = true
     }
 
     // Dedup guard: first StrictMode effect sets this flag synchronously;
@@ -354,12 +378,22 @@ export default function ResultsPage() {
         if (data.sessionId) {
           practiceSessionId.current = data.sessionId
           maybeSaveVideoScores(data.sessionId, pendingVideoScores.current)
+        } else if (!videoSaveFiredRef.current) {
+          // No sessionId returned (dedup or error) and video save hasn't fired —
+          // nothing to update, mark video side done so allSaved can complete.
+          videoSaveDoneRef.current = true
         }
         setLoading(false)
+        scoringDoneRef.current = true
+        checkAllSaved()
       })
       .catch(err => {
         setError(err.message ?? 'Failed to score interview')
         setLoading(false)
+        // Scoring failed — no sessionId will ever arrive, unblock allSaved.
+        if (!videoSaveFiredRef.current) videoSaveDoneRef.current = true
+        scoringDoneRef.current = true
+        checkAllSaved()
       })
 
     return () => controller.abort()
@@ -1017,12 +1051,28 @@ export default function ResultsPage() {
           )}
 
           {/* ── 7. Bottom Buttons ── */}
+          {!allSaved && (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 8, marginBottom: 16, fontSize: 13, color: 'var(--color-gray-400)',
+            }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ animation: 'spin 0.8s linear infinite', flexShrink: 0 }}>
+                <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.5" strokeDasharray="20 14" strokeLinecap="round"/>
+              </svg>
+              Saving results…
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: '48px' }}>
             <Button variant="outline" size="lg" href="/practice">
               Practice Again
             </Button>
-            <Button variant="primary" size="lg" href="/dashboard">
-              View Dashboard
+            <Button
+              variant="primary"
+              size="lg"
+              href={allSaved ? '/dashboard' : undefined}
+              disabled={!allSaved}
+            >
+              {allSaved ? 'View Dashboard' : 'Saving…'}
             </Button>
           </div>
 

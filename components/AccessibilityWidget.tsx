@@ -83,11 +83,11 @@ export default function AccessibilityWidget() {
       <div ref={guideRef} style={{ display:"none", position:"fixed", left:0, right:0, height:40, background:"rgba(200,16,46,0.1)", borderTop:`2px solid ${RED}`, borderBottom:`2px solid ${RED}`, pointerEvents:"none", zIndex:99999 }} />
 
       <button onClick={() => setOpen(p => !p)} aria-label="Accessibility Menu"
-        style={{ position:"fixed", bottom:24, left:24, zIndex:9998, width:48, height:48, borderRadius:"50%", background:"#fff", border:"2px solid #e0e0e0", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 12px rgba(0,0,0,0.12)", transition:"border-color 150ms" }}
+        style={{ position:"fixed", bottom:24, left:24, zIndex:9998, width:48, height:48, borderRadius:"50%", background:"#C8102E", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 14px rgba(200,16,46,0.4)", transition:"all 150ms" }}
         onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.borderColor = RED}
         onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.borderColor = "#e0e0e0"}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="1.8">
-          <circle cx="12" cy="4" r="1.5" fill="#333" stroke="none"/>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8">
+          <circle cx="12" cy="4" r="1.5" fill="#fff" stroke="none"/>
           <path d="M12 6v7M9 8.5h6M9.5 21l1.5-5.5M14.5 21l-1.5-5.5"/>
           <circle cx="12" cy="12" r="10" strokeWidth="1.5"/>
         </svg>
@@ -102,10 +102,10 @@ export default function AccessibilityWidget() {
             </div>
             <div style={{ display:"flex", gap:8 }}>
               <button onClick={reset} style={{ background:"none", border:"1px solid #e0e0e0", borderRadius:8, padding:"5px 10px", fontSize:12, cursor:"pointer", color:"#666", display:"flex", alignItems:"center", gap:4 }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Reset
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Reset
               </button>
               <button onClick={() => setOpen(false)} style={{ background:"none", border:"1px solid #e0e0e0", borderRadius:8, width:30, height:30, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#666" }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
           </div>

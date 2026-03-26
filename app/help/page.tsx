@@ -172,10 +172,10 @@ export default function HelpPage() {
                 <p style={{ margin: "0 0 6px", fontSize: 17, fontWeight: 700, color: "#111" }}>Not finding what you are looking for?</p>
                 <p style={{ margin: "0 0 20px", fontSize: 14, color: "#888" }}>Chat with our AI assistant or send us feedback.</p>
                 <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-                  <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", background: RED, color: "#fff", borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+                  <button onClick={() => { const btn = document.querySelector("[data-chat-widget-trigger]") as HTMLButtonElement; if (btn) btn.click(); }} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", background: RED, color: "#fff", borderRadius: 10, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer" }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                     Chat with us
-                  </Link>
+                  </button>
                   <Link href="/feedback" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", background: "#fff", color: "#444", border: "1.5px solid #e0e0e0", borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                     Send feedback

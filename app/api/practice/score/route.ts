@@ -186,7 +186,13 @@ ${qList}`
 }
 
 export async function POST(request: NextRequest) {
-  const nuid = request.cookies.get('nuid')?.value ?? null
+  const email = request.cookies.get('email')?.value
+  const nuid  = request.cookies.get('nuid')?.value
+  let userId: string | null = nuid ?? null
+  if (email) {
+    const user = await prisma.user.findUnique({ where: { email }, select: { nuid: true } })
+    userId = user?.nuid ?? nuid ?? null
+  }
 
   const {
     questions,
@@ -218,47 +224,32 @@ export async function POST(request: NextRequest) {
     }),
   ])
 
-  if (!hasAnswers) {
-    return Response.json({
-      overallScore: 0,
-      verdict: 'Incomplete',
-      expertScores: DEFAULT_EXPERT_SCORES,
-      strengths:    DEFAULT_FEEDBACK.strengths,
-      improvements: DEFAULT_FEEDBACK.improvements,
-      summary:      DEFAULT_FEEDBACK.summary,
-      modelAnswers: modelAnswersResult,
-    })
-  }
+  // ── Compute scores (use defaults when no answers provided) ──────────────────
+  const expertScores = hasAnswers && scoresResult
+    ? scoresResult.experts.map(e => {
+        const config = EXPERT_CONFIG.find(c => c.name === e.name)
+        return {
+          name:     e.name,
+          score:    e.score,
+          feedback: e.feedback,
+          accent:   config?.accent ?? '#666',
+          bg:       config?.bg ?? '#f9f9f9',
+        }
+      })
+    : DEFAULT_EXPERT_SCORES
 
-  if (!scoresResult) {
-    return Response.json(
-      { error: 'Failed to score interview', modelAnswers: modelAnswersResult },
-      { status: 500 },
-    )
-  }
+  const overallScore = hasAnswers && scoresResult
+    ? Math.round(expertScores.reduce((sum, e) => sum + e.score, 0) / expertScores.length)
+    : 0
 
-  const expertScores = scoresResult.experts.map(e => {
-    const config = EXPERT_CONFIG.find(c => c.name === e.name)
-    return {
-      name:     e.name,
-      score:    e.score,
-      feedback: e.feedback,
-      accent:   config?.accent ?? '#666',
-      bg:       config?.bg ?? '#f9f9f9',
-    }
-  })
-
-  const overallScore = Math.round(
-    expertScores.reduce((sum, e) => sum + e.score, 0) / expertScores.length,
-  )
-
-  const verdict =
+  const verdict: string =
     overallScore >= 9 ? 'Strong'     :
     overallScore >= 7 ? 'Very Good'  :
     overallScore >= 5 ? 'Good'       :
     overallScore >= 3 ? 'Needs Work' : 'Incomplete'
 
   // ── Save session and capture ID so client can update video scores later ──
+  // Always save regardless of whether answers were provided.
   // saveToDB=false means StrictMode sent a duplicate request — skip.
   // 3-second window is a backup dedup in case the client flag misfires.
   let sessionId: string | null = null
@@ -266,7 +257,7 @@ export async function POST(request: NextRequest) {
     try {
       const existing = await prisma.practiceSession.findFirst({
         where: {
-          userId:        nuid,
+          userId:        userId,
           company,
           role,
           interviewType,
@@ -280,7 +271,7 @@ export async function POST(request: NextRequest) {
       } else {
         const saved = await prisma.practiceSession.create({
           data: {
-            userId:        nuid,
+            userId:        userId,
             company,
             role,
             interviewType,
@@ -297,13 +288,33 @@ export async function POST(request: NextRequest) {
           },
         })
         sessionId = saved.id
-        console.log('PracticeSession saved:', saved.id, 'for user:', nuid)
+        console.log('PracticeSession saved:', saved.id, 'for user:', userId)
       }
     } catch (err) {
       console.error('PracticeSession save failed:', err)
     }
   } else {
     console.log('PracticeSession save skipped (client dedup flag)')
+  }
+
+  if (!hasAnswers) {
+    return Response.json({
+      overallScore: 0,
+      verdict: 'Incomplete',
+      expertScores: DEFAULT_EXPERT_SCORES,
+      strengths:    DEFAULT_FEEDBACK.strengths,
+      improvements: DEFAULT_FEEDBACK.improvements,
+      summary:      DEFAULT_FEEDBACK.summary,
+      modelAnswers: modelAnswersResult,
+      sessionId,
+    })
+  }
+
+  if (!scoresResult) {
+    return Response.json(
+      { error: 'Failed to score interview', modelAnswers: modelAnswersResult, sessionId },
+      { status: 500 },
+    )
   }
 
   return Response.json({
