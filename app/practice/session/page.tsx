@@ -378,6 +378,10 @@ export default function InterviewSessionPage() {
 
   // Load params from URL and fetch questions
   useEffect(() => {
+    // Clear dedup flag at the start of every new session so the results page
+    // always saves a fresh PracticeSession to the DB.
+    sessionStorage.removeItem('practiceSessionSaved')
+
     const c = searchParams.get('company') || 'General'
     const r = searchParams.get('role') || 'SWE'
     const it = searchParams.get('interviewType') || 'Technical'
