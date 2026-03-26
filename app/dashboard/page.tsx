@@ -161,7 +161,7 @@ export default function DashboardPage() {
                   {user.fullName}
                 </h1>
                 <p style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>
-                  NUID: {user.nuid}{user.program ? ` · ${user.program}` : ''}{user.gradYear ? ` · Class of ${user.gradYear}` : ''}
+                  NUID: {user.nuid}{user.program ? ` · ${user.program}` : ''}{user.gradYear ? ` · Graduating ${user.gradYear}` : ''}
                 </p>
               </div>
             </div>
