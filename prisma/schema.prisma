@@ -37,10 +37,9 @@ model ChatMessage {
 }
 
 model Volunteer {
-<<<<<<< HEAD
   id                String             @id @default(cuid())
   name              String
-  email             String?            // ← 新增
+  email             String?
   degree            String?
   company           String?
   role              String?
@@ -59,48 +58,18 @@ model AvailabilitySlot {
   day         String
   startTime   String
   endTime     String
-  booked      Boolean   @default(false)  // ← 新增
-=======
-  id               String             @id @default(cuid())
-  name             String
-  degree           String?
-  company          String?
-  role             String?
-  bio              String?
-  skills           String?
-  availability     String             @default("available")
-  createdAt        DateTime           @default(now())
-  email            String?
-  AvailabilitySlot AvailabilitySlot[]
-  sessions         Session[]
->>>>>>> d539866 (added logout functionality and dropdown)
+  booked      Boolean   @default(false)
 }
 
 model Session {
   id          String    @id @default(cuid())
   volunteerId String
-<<<<<<< HEAD
   volunteer   Volunteer @relation(fields: [volunteerId], references: [id])
   requester   String
-  slotId      String?                    // ← 新增
-=======
-  requester   String
->>>>>>> d539866 (added logout functionality and dropdown)
+  slotId      String?
   status      String    @default("pending")
   notes       String?
   createdAt   DateTime  @default(now())
-  slotId      String?
-  volunteer   Volunteer @relation(fields: [volunteerId], references: [id])
-}
-
-model AvailabilitySlot {
-  id          String    @id
-  volunteerId String
-  day         String
-  startTime   String
-  endTime     String
-  booked      Boolean   @default(false)
-  Volunteer   Volunteer @relation(fields: [volunteerId], references: [id])
 }
 
 enum ScanType {
@@ -143,16 +112,12 @@ model PracticeSession {
   engagement    Float?
   createdAt     DateTime @default(now())
 }
-<<<<<<< HEAD
-
 
 model Feedback {
-  id         String   @id @default(cuid())
-  type       String
-  rating     Int?
-  text       String
-  extra      Json?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  type      String
+  rating    Int?
+  text      String
+  extra     Json?
+  createdAt DateTime @default(now())
 }
-=======
->>>>>>> d539866 (added logout functionality and dropdown)
