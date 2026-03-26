@@ -1,12 +1,21 @@
-# NUMockBuddy
+# 🎓 NUMockBuddy — AI-Powered Mock Interview Platform
 
-An AI-powered mock interview platform built for Northeastern University students. Practice technical and behavioral interviews, get instant AI feedback, analyze your resume, and book sessions with peer volunteers — all in one place.
+[![Next.js](https://img.shields.io/badge/Next.js_16-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)]()
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)]()
+[![React](https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)]()
+[![Anthropic](https://img.shields.io/badge/Claude_AI-412991?style=for-the-badge&logo=anthropic&logoColor=white)]()
+[![AssemblyAI](https://img.shields.io/badge/AssemblyAI-FF6B35?style=for-the-badge&logo=assemblyai&logoColor=white)]()
+[![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white)]()
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)]()
+[![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)]()
+
+> A full-stack AI interview preparation platform for Northeastern University students — featuring real-time speech analysis, body language scoring, multi-expert AI feedback, ATS resume analysis, RAG-powered resume chat, and peer volunteer booking.
 
 ---
 
-## Project Overview
+## 🌟 Project Overview
 
-NUMockBuddy helps NU students prepare for internship and full-time interviews. Students can run fully simulated AI mock interviews with real-time speech transcription, body language analysis, and a multi-expert AI scoring panel. They can also upload their resume for deep ATS analysis and keyword matching, chat with an AI resume coach, or book 1-on-1 sessions with fellow Huskies who have co-op experience.
+**NUMockBuddy** is a comprehensive interview prep platform that transforms how NU students prepare for internship and full-time opportunities. Built with a multi-expert Claude AI scoring panel, real-time AssemblyAI transcription, computer vision body language analysis, and a LangChain RAG resume coach, it delivers a personalized, data-driven preparation experience — from your first practice session to your final offer.
 
 ---
 
