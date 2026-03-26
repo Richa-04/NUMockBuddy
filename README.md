@@ -150,21 +150,6 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## Team Members & Contributions
-
-| Name | Feature Area |
-|---|---|
-| **Richa Padhariya** | Practice feature — AI mock interview flow, speech analysis (filler/repeat detection), body language analysis, whiteboard integration, multi-expert AI scoring, session persistence, results page, dashboard session history |
-| *(teammate)* | Resume AI — JD analysis, ATS scanner, RAG chatbot, PDF/DOCX parsing |
-| *(teammate)* | Volunteers — peer volunteer listings, availability calendar, booking system, signup flow |
-| *(teammate)* | Home page, shared UI components (Navbar, Button, Badge), authentication |
-
-> Update teammate names above once confirmed.
-
--->
-
----
-
 ## License
 
 This project was built for educational purposes at Northeastern University.
