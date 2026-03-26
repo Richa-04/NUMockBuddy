@@ -9,13 +9,13 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)]()
 [![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)]()
 
-> A full-stack AI interview preparation platform for Northeastern University students — featuring real-time speech analysis, body language scoring, multi-expert AI feedback, ATS resume analysis, RAG-powered resume chat, and peer volunteer booking.
+> A fully featured AI interviewing practice platform for Northeastern University students that analyzes your voice‚ scores your body language‚ and gives you feedback from multiple expert reviewers‚ as well as an ATS resume analysis‚ an RAG-powered resume chat‚ and a peer volunteer booking system․
 
 ---
 
 ## 🌟 Project Overview
 
-**NUMockBuddy** is a comprehensive interview prep platform that transforms how NU students prepare for internship and full-time opportunities. Built with a multi-expert Claude AI scoring panel, real-time AssemblyAI transcription, computer vision body language analysis, and a LangChain RAG resume coach, it delivers a personalized, data-driven preparation experience — from your first practice session to your final offer.
+**NUMockBuddy** is the most thorough platform for the NU community‚ providing data-driven personalized preparation for internship and full-time interviews from practice to final offer․ The platform uses a composite scoring panel of multi-expert Claude AI‚ real-time AssemblyAI transcription‚ computer vision body language analysis‚ and a LangChain RAG resume coach․
 
 ---
 
@@ -147,21 +147,6 @@ Open [http://localhost:3000](http://localhost:3000).
 | `ASSEMBLYAI_API_KEY` | Yes | Real-time speech-to-text transcription |
 | `OPENAI_API_KEY` | Yes | LangChain embeddings for Resume AI RAG chat |
 | `RESEND_API_KEY` | Yes | Email confirmations for volunteer bookings |
-
----
-
-## Team Members & Contributions
-
-| Name | Feature Area |
-|---|---|
-| **Richa Padhariya** | Practice feature — AI mock interview flow, speech analysis (filler/repeat detection), body language analysis, whiteboard integration, multi-expert AI scoring, session persistence, results page, dashboard session history |
-| *(teammate)* | Resume AI — JD analysis, ATS scanner, RAG chatbot, PDF/DOCX parsing |
-| *(teammate)* | Volunteers — peer volunteer listings, availability calendar, booking system, signup flow |
-| *(teammate)* | Home page, shared UI components (Navbar, Button, Badge), authentication |
-
-> Update teammate names above once confirmed.
-
--->
 
 ---
 
