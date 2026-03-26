@@ -32,7 +32,7 @@ export default function PdfPreview({ url, fileName, fileSize, onReplace, onFileC
 
     try {
       const pdfjsLib = await import("pdfjs-dist");
-      pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
       const pdf = await pdfjsLib.getDocument(url).promise;
       setPageCount(pdf.numPages);
@@ -50,7 +50,7 @@ export default function PdfPreview({ url, fileName, fileSize, onReplace, onFileC
       canvas.width = viewport.width;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      await page.render({ canvasContext: ctx, viewport }).promise;
+      await page.render({ canvasContext: ctx, viewport, canvas }).promise;
       setLoading(false);
     } catch (e) {
       console.error("PDF render failed:", e);
