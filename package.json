@@ -25,7 +25,7 @@
     "next-auth": "^4.24.13",
     "nodemailer": "^7.0.13",
     "pdf-parse": "^1.1.1",
-    "pdfjs-dist": "^5.5.207",
+    "pdfjs-dist": "^4.9.155",
     "pg": "^8.20.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
