@@ -49,3 +49,4 @@ body { font-family: var(--font-body); color: var(--color-black); background: #ff
   .tablet-grid-2     { grid-template-columns: repeat(2, 1fr) !important; }
   .tablet-grid-3     { grid-template-columns: repeat(3, 1fr) !important; }
 }
+  
