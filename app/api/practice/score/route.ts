@@ -213,17 +213,18 @@ export async function POST(request: NextRequest) {
 
   const hasAnswers = Array.isArray(answers) && answers.some((a: string) => a?.trim())
 
-  const scoresResult = hasAnswers
-    ? await callScores(questions, answers, totalFillerCount, role).catch(err => {
-        console.error('callScores failed:', err)
-        return null
-      })
-    : null
-
-  const modelAnswersResult = await callModelAnswers(questions, role, interviewType, selectedLanguage).catch(err => {
-    console.error('callModelAnswers failed:', err)
-    return [] as ModelAnswer[]
-  })
+  const [scoresResult, modelAnswersResult] = await Promise.all([
+    hasAnswers
+      ? callScores(questions, answers, totalFillerCount, role).catch(err => {
+          console.error('callScores failed:', err)
+          return null
+        })
+      : Promise.resolve(null),
+    callModelAnswers(questions, role, interviewType, selectedLanguage).catch(err => {
+      console.error('callModelAnswers failed:', err)
+      return [] as ModelAnswer[]
+    }),
+  ])
 
   // ── Compute scores (use defaults when no answers provided) ──────────────────
   const expertScores = hasAnswers && scoresResult
