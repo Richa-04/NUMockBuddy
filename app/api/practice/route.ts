@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 
+export const maxDuration = 60
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 function buildPrompt(company: string, role: string, interviewType: string, jobType: string): string {
@@ -69,7 +71,7 @@ export async function POST(request: Request) {
 
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 300,
+      max_tokens: 200,
       messages: [{ role: 'user', content: prompt }],
     })
 
