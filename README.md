@@ -19,6 +19,11 @@
 
 ---
 
+## 🚀 Live Demo
+**https://numockbuddy.netlify.app/**
+
+---
+
 ## Features
 
 ### AI Mock Interview (Practice)
